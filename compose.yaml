@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
     environment: *app-environment
     expose:
-      - "8000"
+      - "3005"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -28,7 +28,13 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health',timeout=5)"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health',timeout=5)",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
