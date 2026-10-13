@@ -88,7 +88,7 @@ export function Transactions() {
     <section id="transactions">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2>Transaction ledger</h2>
-        <div className="flex flex-wrap gap-2">
+        <div className="ledger-actions">
           <Button
             variant="outline"
             id="bulk-edit"
@@ -129,6 +129,25 @@ export function Transactions() {
           <ErrorMessage error={query.error} />
         ) : query.data.count ? (
           <>
+            <div className="flex items-center justify-between gap-2 py-3 text-xs text-muted-foreground md:hidden">
+              <span>{selected.size} selected</span>
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  setSelected(
+                    new Set(
+                      query.data.rows.every((r) => selected.has(r.id))
+                        ? []
+                        : query.data.rows.map((r) => r.id),
+                    ),
+                  )
+                }
+              >
+                {query.data.rows.every((r) => selected.has(r.id))
+                  ? "Clear selection"
+                  : "Select all on this page"}
+              </Button>
+            </div>
             <TransactionTable
               rows={query.data.rows}
               selected={selected}

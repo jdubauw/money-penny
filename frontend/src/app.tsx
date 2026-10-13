@@ -6,6 +6,20 @@ import { api, ApiError } from "@/lib/api";
 import type { Bootstrap, Job } from "@/lib/types";
 import { LedgerProvider, useLedger } from "@/lib/state";
 import { ErrorMessage, Loading, TextField } from "@/components/shared";
+import { Brand } from "@/components/brand";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  LayoutDashboard,
+  ArrowLeftRight,
+  FileUp,
+  Settings2,
+  Menu,
+  Plus,
+  LogOut,
+  ShieldCheck,
+  Sparkles,
+  ChevronRight,
+} from "lucide-react";
 import { FiltersPanel } from "@/components/filters";
 function Login() {
   const client = useQueryClient(),
@@ -20,8 +34,8 @@ function Login() {
     },
   });
   return (
-    <section id="login" className="mx-auto mt-[10dvh] max-w-md space-y-6 px-4">
-      <p className="wordmark">Spending Ledger</p>
+    <section id="login" className="login-card">
+      <Brand />
       <div>
         <h1>
           Your spending,
@@ -108,7 +122,9 @@ export function App() {
 function Shell() {
   const { bootstrap, notice, setNotice, invalidate } = useLedger(),
     client = useQueryClient(),
-    path = useRouterState({ select: (s) => s.location.pathname });
+    path = useRouterState({ select: (s) => s.location.pathname }),
+    [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => setMenuOpen(false), [path]);
   const seen = useRef<Set<number> | null>(null);
   const jobs = useQuery({
     queryKey: ["jobs"],
@@ -153,18 +169,21 @@ function Shell() {
     {
       path: "/",
       view: "overview",
+      icon: LayoutDashboard,
       title: "Overview",
       description: "Spending across your imported accounts.",
     },
     {
       path: "/transactions",
       view: "transactions",
+      icon: ArrowLeftRight,
       title: "Transactions",
       description: "Find, categorize, and review every transaction.",
     },
     {
       path: "/imports",
       view: "imports",
+      icon: FileUp,
       title: "Imports",
       description:
         "Upload an export, check the extraction, then approve the rows.",
@@ -172,97 +191,150 @@ function Shell() {
     {
       path: "/settings",
       view: "settings",
+      icon: Settings2,
       title: "AI & rules",
       description:
         "Choose a provider and teach the app your merchant preferences.",
     },
   ] as const;
   const page = pages.find((p) => p.path === path) || pages[0];
-  return (
-    <div
-      id="shell"
-      className="min-h-dvh lg:grid lg:grid-cols-[210px_minmax(0,1fr)]"
-    >
-      <aside className="border-b bg-muted/40 p-4 lg:border-r lg:border-b-0 lg:py-8">
-        <p className="wordmark">
-          Spending
-          <br />
-          Ledger
-        </p>
+  function navigation(mobile = false) {
+    return (
+      <div className="sidebar-inner">
+        <div className="sidebar-brand">
+          <Brand />
+        </div>
+        <div className="sidebar-section-label">Workspace</div>
         <nav
-          aria-label="Main"
-          className="my-4 flex flex-wrap gap-1 lg:mt-10 lg:flex-col lg:gap-2"
+          aria-label={mobile ? "Mobile navigation" : "Main"}
+          className="sidebar-nav"
         >
           {pages.map((p) => (
             <Button
               key={p.path}
               asChild
-              variant={page.path === p.path ? "secondary" : "ghost"}
-              className="w-full justify-start"
+              variant="ghost"
+              className="sidebar-link"
             >
               <Link
                 to={p.path}
                 data-view={p.view}
-                onClick={() => setNotice("")}
+                onClick={() => {
+                  setNotice("");
+                  setMenuOpen(false);
+                }}
                 aria-current={page.path === p.path ? "page" : undefined}
               >
+                <p.icon aria-hidden="true" />
                 {p.title}
+                {page.path === p.path && (
+                  <ChevronRight className="ml-auto size-4" aria-hidden="true" />
+                )}
               </Link>
             </Button>
           ))}
         </nav>
-        <p id="provider-label" className="mb-3 text-sm text-muted-foreground">
-          {bootstrap.ai.provider === "none"
-            ? "Merchant rules only"
-            : `AI provider: ${bootstrap.ai.provider === "ollama" ? "Ollama" : "OpenAI"}`}
-        </p>
-        <Button
-          variant="ghost"
-          disabled={logout.isPending}
-          onClick={() => logout.mutate()}
-        >
-          Sign out
-        </Button>
-        <ErrorMessage error={logout.error} />
-      </aside>
-      <main className="min-w-0 p-4 sm:p-8">
-        <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="mb-2 text-sm text-muted-foreground">
-              HOUSEHOLD SPENDING
-            </p>
-            <h1>{page.title}</h1>
-            <p className="mt-3 text-muted-foreground">{page.description}</p>
+        <div className="sidebar-bottom">
+          <div className="provider-card">
+            <Sparkles className="size-4 text-primary" aria-hidden="true" />
+            <div>
+              <p className="text-xs font-medium">Categorization</p>
+              <p
+                id={mobile ? undefined : "provider-label"}
+                className="mt-1 text-xs text-muted-foreground"
+              >
+                {bootstrap.ai.provider === "none"
+                  ? "Merchant rules only"
+                  : `AI provider: ${bootstrap.ai.provider === "ollama" ? "Ollama" : "OpenAI"}`}
+              </p>
+            </div>
           </div>
-          <Button asChild>
-            <Link to="/imports">Upload statement</Link>
-          </Button>
-        </header>
-        {notice && (
-          <div
-            id="notice"
-            role="status"
-            aria-live="polite"
-            className="mb-6 flex items-center justify-between gap-3 rounded-md border bg-secondary/40 p-3"
+          <div className="flex items-center gap-2 px-3 py-3 text-xs text-muted-foreground">
+            <ShieldCheck className="size-4" aria-hidden="true" /> Your private
+            spending workspace
+          </div>
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            disabled={logout.isPending}
+            onClick={() => logout.mutate()}
           >
-            <span>{notice}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label="Dismiss notification"
-              onClick={() => setNotice("")}
-            >
-              Dismiss
-            </Button>
+            <LogOut aria-hidden="true" />
+            {logout.isPending ? "Signing out…" : "Sign out"}
+          </Button>
+          <ErrorMessage error={logout.error} />
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div id="shell" className="app-shell">
+      <aside className="desktop-sidebar">{navigation()}</aside>
+      <div className="workspace">
+        <div className="workspace-topbar">
+          <div className="flex min-w-0 items-center gap-3">
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="mobile-menu size-11 p-0"
+                  aria-label="Open menu"
+                >
+                  <Menu />
+                </Button>
+              </SheetTrigger>
+              <SheetContent>{navigation(true)}</SheetContent>
+            </Sheet>
+            <div className="mobile-brand">
+              <Brand />
+            </div>
+            <div className="desktop-breadcrumb">
+              <span className="text-muted-foreground">Workspace</span>
+              <ChevronRight className="size-3" aria-hidden="true" />
+              <span>{page.title}</span>
+            </div>
           </div>
-        )}
-        {path === "/transactions" && <FiltersPanel />}
-        <Outlet />
-        <footer className="mt-10 border-t pt-4 text-sm text-muted-foreground">
-          Spending Ledger · Reports reflect imported transactions and your
-          active filters.
-        </footer>
-      </main>
+          <Button asChild className="upload-action">
+            <Link to="/imports">
+              <Plus aria-hidden="true" />
+              <span className="hidden sm:inline">Upload statement</span>
+              <span className="sm:hidden">Upload</span>
+            </Link>
+          </Button>
+        </div>
+        <main className="workspace-main">
+          <header className="page-heading">
+            <h1>{page.title}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {page.description}
+            </p>
+          </header>
+          {notice && (
+            <div
+              id="notice"
+              role="status"
+              aria-live="polite"
+              className="mb-6 flex items-center justify-between gap-3 rounded-md border bg-secondary/40 p-3"
+            >
+              <span>{notice}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Dismiss notification"
+                onClick={() => setNotice("")}
+              >
+                Dismiss
+              </Button>
+            </div>
+          )}
+          {path === "/transactions" && <FiltersPanel />}
+          <Outlet />
+          <footer className="mt-10 border-t pt-4 text-sm text-muted-foreground">
+            Money Penny · Reports reflect imported transactions and your active
+            filters.
+          </footer>
+        </main>
+      </div>
     </div>
   );
 }

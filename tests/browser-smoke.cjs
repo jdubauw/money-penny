@@ -63,27 +63,56 @@ const assert = require('node:assert/strict');
   await page.locator('#overview-content h2').first().waitFor();
   fs.mkdirSync('outputs/app-preview',{recursive:true});
   await page.screenshot({path:'outputs/app-preview/dashboard.png',fullPage:true});
+  async function navigate(view) {
+    if (page.viewportSize().width < 1024) {
+      await page.getByRole('button',{name:'Open menu',exact:true}).click();
+      await page.getByRole('dialog',{name:'Navigation menu'}).waitFor();
+      await page.locator(`.sheet-content nav [data-view="${view}"]`).click();
+      await page.getByRole('dialog',{name:'Navigation menu'}).waitFor({state:'hidden'});
+    } else await page.locator(`.desktop-sidebar nav [data-view="${view}"]`).click();
+  }
   const widths=[320,375,414,768,1440];
   for(const width of widths) {
     await page.setViewportSize({width,height:1100});
     for(const view of ['overview','transactions','imports','settings']) {
-      await page.locator(`nav [data-view="${view}"]`).click();
+      await navigate(view);
       await page.waitForTimeout(150);
+      if (width===375 || width===1440) await page.screenshot({path:`outputs/app-preview/${view}-${width}.png`,fullPage:true});
       const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);
       assert.equal(overflow,false,`${view} overflows at ${width}`);
       const wraps=await page.locator('button:visible').evaluateAll(buttons=>buttons.filter(b=>b.clientWidth>0&&getComputedStyle(b).whiteSpace!=='nowrap').map(b=>b.textContent));
       assert.deepEqual(wraps,[],`Buttons can wrap at ${width}`);
     }
-    await page.locator('nav [data-view="transactions"]').click();
+    await navigate('transactions');
     await page.locator('#ledger button[data-edit]').first().click();
     await page.locator('#edit-dialog').waitFor({state:'visible'});
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth),false,`Edit dialog overflows at ${width}`);
     await page.locator('#edit-dialog button[data-close]').click();
   }
   await page.setViewportSize({width:375,height:1000});
-  await page.locator('nav [data-view="overview"]').click();
+  await navigate('overview');
   await page.waitForTimeout(200);
+  await page.getByRole('button',{name:'Open menu',exact:true}).click();
+  await page.getByRole('dialog',{name:'Navigation menu'}).waitFor();
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(()=>!!document.activeElement.closest('.sheet-content')),true,'Drawer traps keyboard focus');
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog',{name:'Navigation menu'}).waitFor({state:'hidden'});
+  await navigate('transactions');
+  await page.getByRole('button',{name:'Filter transactions',exact:true}).click();
+  assert.equal(await page.locator('#f-search').isVisible(),true);
+  await page.getByRole('button',{name:'Filter transactions',exact:true}).click();
+  assert.equal(await page.locator('#f-search').isVisible(),false);
+  await page.getByRole('button',{name:'Select all on this page',exact:true}).click();
+  assert.ok((await page.locator('#bulk-edit').textContent()).includes('('));
+  await page.screenshot({path:'outputs/app-preview/ledger-mobile.png',fullPage:true});
+  await navigate('overview');
   await page.screenshot({path:'outputs/app-preview/mobile.png',fullPage:true});
+  await page.getByRole('button',{name:'Open menu',exact:true}).click();
+  await page.waitForTimeout(300);
+  assert.ok(Math.abs((await page.locator('.sheet-content').boundingBox()).x)<1,'Drawer settles at viewport edge');
+  await page.screenshot({path:'outputs/app-preview/mobile-menu.png'});
+  await page.getByRole('button',{name:'Close menu',exact:true}).click();
   assert.deepEqual(errors,[],`Browser errors: ${errors.join(', ')}`);
   await browser.close();
   console.log('Browser smoke passed: upload, background extraction, commit, totals, correction, merchant rule, provider settings, and responsive layouts at 320/375/414/768/1440px.');
