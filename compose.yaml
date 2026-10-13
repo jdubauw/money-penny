@@ -20,6 +20,8 @@ services:
     environment: *app-environment
     expose:
       - "3005"
+    ports:
+      - "3005:3005"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
