@@ -2,7 +2,7 @@ import os
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from sqlalchemy import Boolean, Date, DateTime, Integer, JSON, String, Text, UniqueConstraint, create_engine
+from sqlalchemy import Boolean, Date, DateTime, Integer, JSON, String, Text, UniqueConstraint, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
@@ -10,6 +10,15 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DATA_DIR / 'spending.db'}")
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, **({"connect_args": {"check_same_thread": False}} if DATABASE_URL.startswith("sqlite") else {}))
 Session = sessionmaker(engine, expire_on_commit=False)
+
+
+def data_lock(session, exclusive=False):
+    # Serialize resets against API requests and worker claims across containers.
+    if session.bind.dialect.name == "postgresql":
+        function = "pg_advisory_xact_lock" if exclusive else "pg_advisory_xact_lock_shared"
+        session.execute(text(f"SELECT {function}(72160413)"))
+    elif exclusive and session.bind.dialect.name == "sqlite":
+        session.execute(text("BEGIN IMMEDIATE"))
 
 
 def now():

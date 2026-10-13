@@ -7,7 +7,7 @@ from pathlib import Path
 from sqlalchemy import select
 
 from app.ai import categorize_rows
-from app.database import Import, Job, Rule, Session, Transaction, init_db, now
+from app.database import Import, Job, Rule, Session, Transaction, data_lock, init_db, now
 from app.importer import CATEGORIES, flag_duplicates, parse
 
 log = logging.getLogger(__name__)
@@ -92,6 +92,7 @@ def safe_error(exc):
 
 def run_once():
     with Session() as session:
+        data_lock(session)
         # Stale jobs are retried after crash; worker holds only short database locks.
         stale = session.scalars(select(Job).where(Job.status == "running", Job.started_at < now() - timedelta(minutes=15))).all()
         for job in stale:

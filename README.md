@@ -123,6 +123,16 @@ The optional `tests/browser-smoke.cjs` runs a full browser workflow against an i
 
 Run one worker process. Interrupted jobs are requeued when that worker restarts; completed imports are not committed automatically.
 
+## Start over
+
+In **AI & rules → Reset all data**, open the confirmation dialog, enter your
+sign-in password, type `DELETE ALL DATA`, and click **Delete all data permanently**.
+This removes all transactions, accounts, statement files, merchant rules, edit
+history, and processing history. Your login and saved AI settings are retained.
+Browser CSV mapping preferences are cleared on the device performing the reset.
+Wait for queued or running import/AI jobs to finish before resetting. This cannot
+be undone from the app; separately created backups are not deleted.
+
 ## Backup and restore
 
 Back up **both** PostgreSQL and the statement volume. Keep credentials and backups private. For a consistent snapshot, stop uploads and processing during the backup. From a checkout with the same Compose project and environment:

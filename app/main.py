@@ -22,7 +22,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.ai import config, plan_filters, public_config, request_json
-from app.database import Audit, DATA_DIR, Import, Job, Rule, Session, Setting, Transaction, init_db
+from app.database import Audit, DATA_DIR, Import, Job, Rule, Session, Setting, Transaction, data_lock, init_db
 from app.importer import CATEGORIES, KINDS, cents, flag_duplicates
 
 STATIC = Path(os.environ.get("FRONTEND_DIST", Path(__file__).resolve().parents[1] / "frontend" / "dist"))
@@ -44,8 +44,9 @@ async def lifespan(app):
 app = FastAPI(title="Spending Ledger", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
 
-def db():
+def db(request: Request):
     with Session() as session:
+        data_lock(session, exclusive=request.url.path == "/api/settings/reset")
         yield session
 
 
@@ -457,6 +458,46 @@ def export(filters=Depends(filter_params), session=Depends(db)):
         writer.writerow([r.date.isoformat(), cell(r.account), cell(r.description), cell(r.vendor),
                          f"{r.amount_cents / 100:.2f}", r.kind, cell(r.category), cell(r.subcategory), r.import_id])
     return Response(out.getvalue(), media_type="text/csv", headers={"Content-Disposition": 'attachment; filename="spending.csv"'})
+
+
+class ResetData(BaseModel):
+    confirmation: Literal["DELETE ALL DATA"]
+    password: str = Field(min_length=1, max_length=1000)
+
+
+@app.post("/api/settings/reset", dependencies=[Depends(auth)])
+def reset_data(body: ResetData, session=Depends(db)):
+    import shutil
+    from sqlalchemy import delete
+
+    if not hmac.compare_digest(body.password.encode(), os.environ["APP_PASSWORD"].encode()):
+        raise HTTPException(403, "Incorrect password. No data was deleted.")
+    active = session.scalar(select(Job.id).where(Job.status.in_(["queued", "running"])).limit(1))
+    if active:
+        raise HTTPException(409, "Wait for queued or running jobs to finish before resetting data.")
+    uploads = DATA_DIR / "uploads"
+    quarantine = DATA_DIR / ("reset-trash-" + secrets.token_hex(16))
+    moved = False
+    try:
+        # Rename first, so database failures can restore the complete archive.
+        if uploads.exists():
+            uploads.rename(quarantine)
+            moved = True
+        for model in [Audit, Transaction, Rule, Job, Import]:
+            session.execute(delete(model))
+        session.commit()
+    except Exception:
+        session.rollback()
+        if moved:
+            quarantine.rename(uploads)
+        raise HTTPException(500, "Reset failed. Your data was restored; check server logs and retry.")
+    try:
+        # Retrying also finishes cleanup left by an earlier storage failure.
+        for pending in DATA_DIR.glob("reset-trash-*"):
+            shutil.rmtree(pending)
+    except OSError:
+        raise HTTPException(500, "Ledger records were cleared, but statement file cleanup failed. Check server storage permissions, then retry the reset.")
+    return {"reset": True}
 
 
 class AISettings(BaseModel):

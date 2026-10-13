@@ -8,7 +8,13 @@ import {
 import { api } from "@/lib/api";
 import { useLedger } from "@/lib/state";
 import type { AIConfig, Job, Rule } from "@/lib/types";
-import { ErrorMessage, Field, Loading, TextField } from "@/components/shared";
+import {
+  ErrorMessage,
+  Field,
+  Loading,
+  Modal,
+  TextField,
+} from "@/components/shared";
 export function Settings() {
   const { bootstrap, invalidate, setNotice } = useLedger(),
     [values, setValues] = useState(bootstrap.ai);
@@ -46,6 +52,26 @@ export function Settings() {
     onSuccess: async () => {
       setNotice("Merchant rule removed.");
       await invalidate();
+    },
+  });
+  const [resetOpen, setResetOpen] = useState(false),
+    [confirmation, setConfirmation] = useState(""),
+    [resetPassword, setResetPassword] = useState("");
+  const reset = useMutation({
+    mutationFn: () =>
+      api("/api/settings/reset", {
+        method: "POST",
+        body: { confirmation, password: resetPassword },
+      }),
+    onSuccess: () => {
+      try {
+        for (const key of Object.keys(localStorage)) {
+          if (key.startsWith("csv:")) localStorage.removeItem(key);
+        }
+      } catch {
+        // Storage may be disabled; still refresh the cleared ledger.
+      }
+      window.location.assign("/");
     },
   });
   return (
@@ -191,6 +217,76 @@ export function Settings() {
           )}
         </div>
       </div>
+      <div className="mt-8 space-y-4 border-destructive/30">
+        <h2 className="text-destructive">Reset all data</h2>
+        <p className="text-sm text-muted-foreground">
+          Delete all transactions, uploaded statements, accounts, merchant
+          rules, edit history, and processing history. Your login and AI
+          settings stay saved. This cannot be undone.
+        </p>
+        <Button
+          variant="destructive"
+          onClick={() => {
+            setConfirmation("");
+            setResetPassword("");
+            reset.reset();
+            setResetOpen(true);
+          }}
+        >
+          Reset all data
+        </Button>
+      </div>
+      <Modal
+        open={resetOpen}
+        onOpenChange={(open) => {
+          if (!reset.isPending) {
+            setResetOpen(open);
+            setResetPassword("");
+          }
+        }}
+        id="reset-dialog"
+        title="Delete all spending data?"
+        description="This permanently deletes your ledger and original statement files. There is no undo."
+      >
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            reset.mutate();
+          }}
+        >
+          <p className="text-sm text-muted-foreground">
+            Wait for all import and AI jobs to finish before resetting. Your
+            login and AI connection settings will be kept.
+          </p>
+          <TextField
+            id="reset-confirmation"
+            label="Type DELETE ALL DATA to confirm"
+            value={confirmation}
+            onChange={setConfirmation}
+            required
+          />
+          <TextField
+            id="reset-password"
+            label="Your sign-in password"
+            type="password"
+            value={resetPassword}
+            onChange={setResetPassword}
+            required
+          />
+          <ErrorMessage error={reset.error} />
+          <Button
+            variant="destructive"
+            disabled={
+              reset.isPending ||
+              confirmation !== "DELETE ALL DATA" ||
+              !resetPassword
+            }
+          >
+            {reset.isPending ? "Deleting…" : "Delete all data permanently"}
+          </Button>
+        </form>
+      </Modal>
     </section>
   );
 }

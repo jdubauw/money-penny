@@ -256,3 +256,85 @@ def test_interrupted_worker_jobs_are_requeued(client):
     recover_interrupted_jobs()
     with Session() as session:
         assert session.get(Job,job_id).status=='queued'
+
+
+def test_reset_requires_confirmation_and_password(client):
+    item=upload(client)
+    commit(client,item)
+    with Session() as session:
+        original=Path(session.get(Import,item).path)
+    assert client.post('/api/settings/reset',json={'confirmation':'wrong','password':'test-password-long-enough'}).status_code==422
+    assert client.post('/api/settings/reset',json={'confirmation':'DELETE ALL DATA','password':'wrong'}).status_code==403
+    assert original.exists()
+    assert client.get('/api/transactions').json()['count']==4
+
+
+def test_reset_clears_archive_and_rules_but_keeps_ai_settings(client):
+    from app.database import Audit, Rule, Setting
+    item=upload(client)
+    commit(client,item)
+    tx=client.get('/api/transactions').json()['rows'][0]
+    assert client.patch('/api/transactions',json={'ids':[tx['id']],'category':'Home','save_rule':True}).status_code==200
+    client.put('/api/settings/ai',json={'provider':'ollama','ollama_model':'saved-model'})
+    with Session() as session:
+        original=Path(session.get(Import,item).path)
+        orphan=original.parent/'leftover.csv'
+        orphan.write_text('Previous failed upload')
+    result=client.post('/api/settings/reset',json={'confirmation':'DELETE ALL DATA','password':'test-password-long-enough'})
+    assert result.status_code==200,result.text
+    assert not original.exists() and not orphan.exists()
+    with Session() as session:
+        for model in [Transaction,Import,Job,Rule,Audit]:
+            assert session.query(model).count()==0
+        assert session.get(Setting,'ai').value['ollama_model']=='saved-model'
+    assert client.get('/api/bootstrap').json()['accounts']==[]
+    assert client.get('/api/transactions').json()['count']==0
+    # The same statement can be imported again after the reset.
+    fresh=upload(client)
+    assert commit(client,fresh).status_code==200
+
+
+@pytest.mark.parametrize('status',['queued','running'])
+def test_reset_blocks_active_jobs(client,status):
+    item=upload(client)
+    with Session() as session:
+        job=session.query(Job).first()
+        job.status=status
+        original=Path(session.get(Import,item).path)
+        session.commit()
+    assert client.post('/api/settings/reset',json={'confirmation':'DELETE ALL DATA','password':'test-password-long-enough'}).status_code==409
+    assert original.exists()
+    assert len(client.get('/api/imports').json())==1
+
+
+def test_reset_restores_files_on_database_failure(client,monkeypatch):
+    from sqlalchemy.orm import Session as OrmSession
+    item=upload(client)
+    commit(client,item)
+    with Session() as session:
+        original=Path(session.get(Import,item).path)
+    def fail_commit(self):
+        raise RuntimeError('Simulated database failure')
+    monkeypatch.setattr(OrmSession,'commit',fail_commit)
+    response=client.post('/api/settings/reset',json={'confirmation':'DELETE ALL DATA','password':'test-password-long-enough'})
+    assert response.status_code==500
+    assert original.exists()
+    assert client.get('/api/transactions').json()['count']==4
+
+
+def test_reset_retry_finishes_failed_file_cleanup(client,monkeypatch):
+    import shutil
+    item=upload(client)
+    commit(client,item)
+    with Session() as session:
+        archive=Path(session.get(Import,item).path).parent.parent
+    real_remove=shutil.rmtree
+    def fail_remove(path):
+        raise PermissionError('Simulated storage failure')
+    monkeypatch.setattr(shutil,'rmtree',fail_remove)
+    body={'confirmation':'DELETE ALL DATA','password':'test-password-long-enough'}
+    assert client.post('/api/settings/reset',json=body).status_code==500
+    assert list(archive.glob('reset-trash-*'))
+    monkeypatch.setattr(shutil,'rmtree',real_remove)
+    assert client.post('/api/settings/reset',json=body).status_code==200
+    assert not list(archive.glob('reset-trash-*'))
