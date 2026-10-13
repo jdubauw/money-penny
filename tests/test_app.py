@@ -166,16 +166,28 @@ def test_ollama_protocol_and_validation(monkeypatch):
     def handler(request):
         captured.append(json.loads(request.content))
         assert request.url.path=='/api/chat'
-        return httpx.Response(200,json={'message':{'content':json.dumps({'suggestions':[{'id':1,'category':'Food','subcategory':'Dining','explanation':'Restaurant'}]})}})
+        return httpx.Response(200,json={'message':{'content':json.dumps({'category':'Food','subcategory':'Dining','explanation':'Restaurant'})}})
     real_client=httpx.Client
     monkeypatch.setattr(ai.httpx,'Client',lambda **kwargs:real_client(transport=httpx.MockTransport(handler),**kwargs))
     cfg={'provider':'ollama','ollama_model':'test'}
-    rows=[SimpleNamespace(id=1,description='Restaurant',vendor='Restaurant')]
-    assert ai.categorize_rows(cfg,rows,['Food','Other'])[0].category=='Food'
+    rows=[SimpleNamespace(id=i,description='Restaurant',vendor='Restaurant') for i in [81,209]]
+    suggestions=ai.categorize_rows(cfg,rows,['Food','Other'])
+    assert [s.id for s in suggestions]==[81,209]
+    assert all(s.category=='Food' for s in suggestions)
+    assert len(captured)==2
+    assert 'id' not in captured[0]['format']['properties']
+    assert captured[0]['format']['properties']['category']['enum']==['Food','Other']
     assert captured[0]['stream'] is False
     assert 'amount' not in captured[0]['messages'][1]['content']
+    monkeypatch.setattr(ai,'request_json',lambda *a:{'category':'Invented','subcategory':'','explanation':'Invalid'})
+    with pytest.raises(ValueError,match='unsupported category'):ai.categorize_rows(cfg,rows,['Food','Other'])
+
+
+def test_batch_categorization_rejects_wrong_ids(monkeypatch):
+    rows=[SimpleNamespace(id=1,description='Restaurant',vendor='Restaurant')]
     monkeypatch.setattr(ai,'request_json',lambda *a:{'suggestions':[{'id':99,'category':'Food','subcategory':'Dining','explanation':'bad id'}]})
-    with pytest.raises(ValueError,match='unexpected IDs'):ai.categorize_rows(cfg,rows,['Food','Other'])
+    with pytest.raises(ValueError,match='unexpected IDs'):
+        ai.categorize_rows({'provider':'openai'},rows,['Food','Other'])
 
 
 def test_openai_protocol_does_not_expose_key(monkeypatch,client):

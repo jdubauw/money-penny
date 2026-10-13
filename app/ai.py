@@ -9,12 +9,15 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.database import Setting
 
 
-class Suggestion(BaseModel):
+class Classification(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    id: int
     category: str = Field(min_length=1, max_length=100)
     subcategory: str = Field(max_length=100)
     explanation: str = Field(max_length=600)
+
+
+class Suggestion(Classification):
+    id: int
 
 
 class Suggestions(BaseModel):
@@ -88,6 +91,23 @@ def request_json(cfg, schema, instructions, data):
 
 
 def categorize_rows(cfg, rows, categories):
+    if cfg["provider"] == "ollama":
+        # Local models need not reproduce database IDs or a large batch of results.
+        schema = Classification.model_json_schema()
+        schema["properties"]["category"]["enum"] = categories
+        suggestions = []
+        for row in rows:
+            result = Classification.model_validate(request_json(cfg, schema,
+                "Categorize this spending merchant using exactly one of the allowed categories. "
+                "Return category, subcategory, and a brief explanation. "
+                "Use Other for ambiguous general retailers or insufficient information. "
+                "Do not infer purchased items, transaction amounts, or dates.",
+                {"allowed_categories": categories,
+                 "transaction": {"description": row.description, "vendor": row.vendor}}))
+            if result.category not in categories:
+                raise ValueError("AI returned an unsupported category; no changes from this batch were applied.")
+            suggestions.append(Suggestion(id=row.id, **result.model_dump()))
+        return suggestions
     schema = Suggestions.model_json_schema()
     schema["$defs"]["Suggestion"]["properties"]["category"]["enum"] = categories
     payload = [{"id": r.id, "description": r.description, "vendor": r.vendor} for r in rows]

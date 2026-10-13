@@ -48,9 +48,10 @@ def classify(payload):
     changed = 0
     # Snapshot the requested rows so concurrent uploads cannot extend a job indefinitely.
     ids = payload["ids"]
-    for offset in range(0, len(ids), 25):
+    batch_size = 5 if cfg["provider"] == "ollama" else 25
+    for offset in range(0, len(ids), batch_size):
         with Session() as session:
-            rows = session.scalars(select(Transaction).where(Transaction.id.in_(ids[offset:offset + 25]),
+            rows = session.scalars(select(Transaction).where(Transaction.id.in_(ids[offset:offset + batch_size]),
                 Transaction.category == "Other", Transaction.category_source != "manual",
                 Transaction.kind.in_(["purchase", "refund", "fee", "interest"]))).all()
             if not rows:
