@@ -135,21 +135,13 @@ export function Overview() {
               {view[0].toUpperCase() + view.slice(1)}
             </Button>
           ))}
-          {r?.year_end_period && (
-            <Button
-              variant="ghost"
-              className="report-tab"
-              onClick={() =>
-                setReportSelection({
-                  ...selection,
-                  view: "yearly",
-                  period: r.year_end_period!,
-                })
-              }
-            >
-              {r.year_end_period} year-end summary
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            className="report-tab"
+            onClick={() => changeView("yearly")}
+          >
+            Year-end summary
+          </Button>
         </div>
         <Button
           variant="outline"
