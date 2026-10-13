@@ -13,3 +13,5 @@ work/
 *.db
 
 backups/
+node_modules/
+frontend/dist/

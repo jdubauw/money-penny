@@ -12,7 +12,9 @@ A private, single-user web application for uploading bank exports, reviewing tra
 - AI categorization of unknown spending merchants, and natural-language questions translated into proposed filters for your approval. SQL/database logic calculates totals.
 - Signed, expiring HTTP-only sessions, password-change session invalidation, login throttling, same-origin mutation checks, and server-side AI credentials.
 
-The browser UI is served directly by FastAPI. It has no CDN, external fonts, or JavaScript build pipeline; all interface assets remain local.
+The frontend lives in `frontend/`: **React + TypeScript**, **Vite**, **Tailwind CSS v4**, **shadcn/ui** (Radix components), **TanStack Router**, and **TanStack Query**. Components, typed API calls, query caching, and mutations replace the original static DOM scripts. Routing uses URL hashes so refreshing a page needs no extra reverse-proxy routes.
+
+The Dockerfile uses a Node build stage to compile the frontend and copies only the resulting assets into the Python image. FastAPI serves those assets and the API from the same origin. No Node server, CDN, or third-party font service is needed in production. The existing Coolify Compose configuration still works unchanged.
 
 ## Deploy on Coolify
 
@@ -77,7 +79,7 @@ No coverage is assumed for months or accounts you haven't uploaded. The transact
 
 ## Local development
 
-Python 3.12+ and Poppler (`pdftotext`) are required. For a direct development run, SQLite is used when `DATABASE_URL` is absent; production Compose uses PostgreSQL.
+Node.js 24+, Python 3.12+, and Poppler (`pdftotext`) are required. For a direct development run, SQLite is used when `DATABASE_URL` is absent; production Compose uses PostgreSQL.
 
 ```sh
 python3 -m venv .venv
@@ -91,14 +93,27 @@ Fill in `.env`. For an HTTP development preview, set `APP_ORIGIN=http://localhos
 docker compose -f compose.yaml -f compose.local.yaml up --build -d
 ```
 
-Or export the relevant environment variables in your shell and run these in two terminals:
+For a Python development run, build the frontend once first:
+
+```sh
+cd frontend
+npm ci
+npm run build
+cd ..
+```
+
+Then export the relevant environment variables in your shell and run these in two terminals:
 
 ```sh
 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 .venv/bin/python -m app.worker
 ```
 
-Run tests with `.venv/bin/python -m pytest -q`. Tests create an isolated temporary database and mock the AI providers. The private-PDF reconciliation check runs only when the original `input/` PDFs are present.
+For frontend hot reload, run `npm run dev` from `frontend/` in a third terminal and open `http://localhost:5173/static/`. Set backend `APP_ORIGIN=http://localhost:5173` and `COOKIE_SECURE=false` for this development session. Vite proxies `/api` to FastAPI on port 8000, preserving the HTTP-only session cookie. For testing the compiled UI served by FastAPI, use `APP_ORIGIN=http://localhost:8000` instead.
+
+`npm run build` type-checks and builds the frontend. `npm run format:check` checks the TypeScript, React, and CSS formatting. The checked-in `frontend/components.json` lets you add shadcn components from `frontend/` with `npx shadcn@latest add COMPONENT`.
+
+Build the frontend before running backend tests with `.venv/bin/python -m pytest -q`. Tests create an isolated temporary database and mock the AI providers. The private-PDF reconciliation check runs only when the original `input/` PDFs are present.
 
 The optional `tests/browser-smoke.cjs` runs a full browser workflow against an isolated deployment with the Node `playwright` package and Chromium installed. Supply `TEST_APP_URL`, `APP_USERNAME`, and `APP_PASSWORD` in the environment (or `TEST_ENV_FILE` pointing to a private test `.env`). It creates synthetic transactions and rules; never run it against your production ledger. It also saves screenshots in `outputs/app-preview/` and checks mobile layouts.
 

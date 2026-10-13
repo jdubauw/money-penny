@@ -24,7 +24,9 @@ from app.ai import config, plan_filters, public_config, request_json
 from app.database import Audit, DATA_DIR, Import, Job, Rule, Session, Setting, Transaction, init_db
 from app.importer import CATEGORIES, KINDS, cents, flag_duplicates
 
-STATIC = Path(__file__).parent / "static"
+STATIC = Path(os.environ.get("FRONTEND_DIST", Path(__file__).resolve().parents[1] / "frontend" / "dist"))
+if not STATIC.exists():
+    STATIC = Path(__file__).parent / "static"
 login_attempts = defaultdict(deque)
 
 
@@ -91,7 +93,8 @@ async def security(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+    # Radix/shadcn dialogs use inline styles for focus and scroll-lock management.
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
     return response
@@ -105,6 +108,8 @@ def health(session=Depends(db)):
 
 @app.get("/")
 def index():
+    if not (STATIC / "index.html").exists():
+        raise HTTPException(503, "Build the React frontend with npm ci and npm run build in frontend/ first.")
     return FileResponse(STATIC / "index.html")
 
 
@@ -523,9 +528,4 @@ def remove_rule(rule_id: int, session=Depends(db)):
     return {"ok": True}
 
 
-app.mount("/static", StaticFiles(directory=STATIC), name="static")
-
-
-@app.get("/tokens.css")
-def tokens():
-    return FileResponse(Path(__file__).resolve().parents[1] / "tokens.css", media_type="text/css")
+app.mount("/static", StaticFiles(directory=STATIC, check_dir=False), name="static")

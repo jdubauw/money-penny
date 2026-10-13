@@ -1,0 +1,409 @@
+import { useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
+import { api, money } from "@/lib/api";
+import { useLedger } from "@/lib/state";
+import type { ImportRecord } from "@/lib/types";
+import {
+  ErrorMessage,
+  Field,
+  Loading,
+  Modal,
+  TextField,
+} from "@/components/shared";
+import { TransactionTable } from "@/components/transaction-table";
+interface Preferences {
+  date_format: string;
+  negative_expenses: boolean;
+  mapping: Record<string, string>;
+}
+const defaults: Preferences = {
+  date_format: "%m/%d/%Y",
+  negative_expenses: false,
+  mapping: {},
+};
+export function Imports() {
+  const { bootstrap, invalidate, setNotice } = useLedger(),
+    client = useQueryClient();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [account, setAccount] = useState(""),
+    [accountKind, setAccountKind] = useState("credit"),
+    [file, setFile] = useState<File | null>(null),
+    [prefs, setPrefs] = useState<Preferences>(defaults);
+  const [preview, setPreview] = useState<ImportRecord | null>(null),
+    [selected, setSelected] = useState(new Set<number>()),
+    [page, setPage] = useState(1),
+    [ack, setAck] = useState(false);
+  const imports = useQuery({
+    queryKey: ["imports"],
+    queryFn: ({ signal }) => api<ImportRecord[]>("/api/imports", { signal }),
+    refetchInterval: (query) =>
+      query.state.data?.some((i) => ["queued", "processing"].includes(i.status))
+        ? 2500
+        : false,
+  });
+  const open = useMutation({
+    mutationFn: (id: number) => api<ImportRecord>(`/api/imports/${id}`),
+    onSuccess: (item) => {
+      if (item.status !== "preview") {
+        setNotice("This import is not ready for review.");
+        return;
+      }
+      setPreview(item);
+      setPage(1);
+      setAck(false);
+      setSelected(
+        new Set(
+          item
+            .preview!.rows.map((r, i) => (r.duplicate_candidate ? -1 : i))
+            .filter((i) => i >= 0),
+        ),
+      );
+      commit.reset();
+    },
+  });
+  const upload = useMutation({
+    mutationFn: async () => {
+      if (!file) throw new Error("Choose a CSV or PDF file.");
+      const body = new FormData();
+      body.set("file", file);
+      body.set("account", account);
+      body.set("account_kind", accountKind);
+      body.set("options", JSON.stringify(prefs));
+      return api<ImportRecord & { already_uploaded?: boolean }>(
+        "/api/imports",
+        { method: "POST", body },
+      );
+    },
+    onSuccess: async (item) => {
+      try {
+        localStorage.setItem("csv:" + account.trim(), JSON.stringify(prefs));
+      } catch {
+        /* Browser storage may be unavailable. */
+      }
+      setFile(null);
+      if (fileInput.current) fileInput.current.value = "";
+      setNotice(
+        item.already_uploaded
+          ? "This file was already uploaded."
+          : "Extraction is queued. Review the import when it is ready.",
+      );
+      await invalidate();
+      if (item.status === "preview") open.mutate(item.id);
+    },
+  });
+  const commit = useMutation({
+    mutationFn: () =>
+      api<{ imported: number }>(`/api/imports/${preview!.id}/commit`, {
+        method: "POST",
+        body: { selected_indices: [...selected], acknowledge_warnings: ack },
+      }),
+    onSuccess: async (result) => {
+      setPreview(null);
+      setNotice(`${result.imported} transactions imported.`);
+      await invalidate();
+      client.removeQueries({ queryKey: ["history"] });
+    },
+  });
+  function accountChanged(value: string) {
+    setAccount(value);
+    try {
+      const saved = localStorage.getItem("csv:" + value.trim());
+      setPrefs(saved ? JSON.parse(saved) : defaults);
+    } catch {
+      setPrefs(defaults);
+    }
+  }
+  const rows = preview?.preview?.rows || [],
+    start = (page - 1) * 100;
+  return (
+    <section id="imports">
+      <form
+        id="upload-form"
+        className="max-w-4xl space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          upload.mutate();
+        }}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="statement-file" label="Statement export">
+            <Input
+              ref={fileInput}
+              id="statement-file"
+              type="file"
+              accept=".csv,.pdf"
+              required
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+            />
+            <p className="text-sm text-muted-foreground">
+              CSV or supported Chase credit-card PDF, up to 25 MB.
+            </p>
+          </Field>
+          <Field id="account-name" label="Account name">
+            <Input
+              id="account-name"
+              list="account-list"
+              value={account}
+              onChange={(e) => accountChanged(e.target.value)}
+              required
+              maxLength={120}
+              placeholder="Chase •••• 2956"
+            />
+            <datalist id="account-list">
+              {bootstrap.accounts.map((a) => (
+                <option key={a} value={a} />
+              ))}
+            </datalist>
+            <p className="text-sm text-muted-foreground">
+              Use the same account name for repeated uploads.
+            </p>
+          </Field>
+          <Field id="account-kind" label="Account type">
+            <NativeSelect
+              id="account-kind"
+              value={accountKind}
+              onChange={(e) => setAccountKind(e.target.value)}
+            >
+              <NativeSelectOption value="credit">
+                Credit card
+              </NativeSelectOption>
+              <NativeSelectOption value="checking">
+                Checking / bank
+              </NativeSelectOption>
+            </NativeSelect>
+          </Field>
+        </div>
+        <details className="border-y py-4">
+          <summary>CSV format and column mapping</summary>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field id="date-format" label="Date format">
+              <NativeSelect
+                id="date-format"
+                value={prefs.date_format}
+                onChange={(e) =>
+                  setPrefs({ ...prefs, date_format: e.target.value })
+                }
+              >
+                {[
+                  ["%m/%d/%Y", "MM/DD/YYYY"],
+                  ["%m/%d/%y", "MM/DD/YY"],
+                  ["%d/%m/%Y", "DD/MM/YYYY"],
+                  ["%Y-%m-%d", "YYYY-MM-DD"],
+                ].map(([v, label]) => (
+                  <NativeSelectOption key={v} value={v}>
+                    {label}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field id="amount-sign" label="Amount convention">
+              <NativeSelect
+                id="amount-sign"
+                value={prefs.negative_expenses ? "negative" : "positive"}
+                onChange={(e) =>
+                  setPrefs({
+                    ...prefs,
+                    negative_expenses: e.target.value === "negative",
+                  })
+                }
+              >
+                <NativeSelectOption value="positive">
+                  Expenses are positive
+                </NativeSelectOption>
+                <NativeSelectOption value="negative">
+                  Expenses are negative
+                </NativeSelectOption>
+              </NativeSelect>
+            </Field>
+            {["date", "description", "amount", "debit", "credit", "type"].map(
+              (k) => (
+                <TextField
+                  key={k}
+                  id={"map-" + k}
+                  label={k + " column"}
+                  value={prefs.mapping[k] || ""}
+                  placeholder="Auto-detect"
+                  onChange={(v) =>
+                    setPrefs({
+                      ...prefs,
+                      mapping: { ...prefs.mapping, [k]: v },
+                    })
+                  }
+                />
+              ),
+            )}
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Enter exact CSV header names when automatic detection is
+            insufficient. Debit/Credit columns take positive values.
+          </p>
+        </details>
+        <ErrorMessage error={upload.error} />
+        <Button disabled={upload.isPending}>
+          {upload.isPending ? "Working…" : "Upload & preview"}
+        </Button>
+        <p className="text-sm text-muted-foreground">
+          CSV preferences are saved in this browser for each account.
+        </p>
+      </form>
+      <div className="mt-8 border-t pt-6">
+        <h2>Statement archive</h2>
+        <ErrorMessage error={open.error} />
+        <div id="import-list">
+          {imports.isPending ? (
+            <Loading />
+          ) : imports.error ? (
+            <ErrorMessage error={imports.error} />
+          ) : imports.data.length ? (
+            imports.data.map((item) => (
+              <div key={item.id} className="space-y-3 border-b py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <strong className="break-all">{item.filename}</strong>
+                    <p className="text-sm text-muted-foreground">
+                      {item.account} · {item.status} · {item.row_count}{" "}
+                      extracted rows
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    {item.status === "preview" && (
+                      <Button
+                        disabled={open.isPending}
+                        onClick={() => open.mutate(item.id)}
+                      >
+                        Review import
+                      </Button>
+                    )}
+                    <a href={`/api/imports/${item.id}/file`}>Original file</a>
+                  </div>
+                </div>
+                <ErrorMessage error={item.error} />
+              </div>
+            ))
+          ) : (
+            <p className="text-muted-foreground">
+              Your uploaded statements will appear here.
+            </p>
+          )}
+        </div>
+      </div>
+      <Modal
+        open={!!preview}
+        onOpenChange={(v) => {
+          if (!v && !commit.isPending) setPreview(null);
+        }}
+        id="preview-dialog"
+        title="Review import"
+        description="Check the extracted rows against your original statement."
+      >
+        <div id="preview-content" className="space-y-4">
+          <p>
+            <strong>{preview?.filename}</strong> · {preview?.account}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {rows.length} transactions. Possible duplicates are unchecked by
+            default; keep them if they are separate purchases.
+          </p>
+          {!!preview?.preview?.warnings.length && (
+            <div className="rounded-md bg-secondary p-4">
+              <ul className="list-inside list-disc">
+                {preview.preview.warnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+              <Label className="mt-3 min-h-11 leading-normal">
+                <Checkbox
+                  id="ack-warnings"
+                  checked={ack}
+                  onCheckedChange={(v) => setAck(!!v)}
+                />
+                I checked these warnings against the original statement
+              </Label>
+            </div>
+          )}
+          {!!preview?.preview?.reconciliation?.length && (
+            <details>
+              <summary>Statement totals and extraction</summary>
+              {preview.preview.reconciliation.map((r) => (
+                <p key={r.label}>
+                  {r.label}: statement{" "}
+                  {r.expected_cents === null
+                    ? "unknown"
+                    : money(r.expected_cents)}{" "}
+                  · extracted {money(r.actual_cents)} · difference{" "}
+                  {r.difference_cents === null
+                    ? "unknown"
+                    : money(r.difference_cents)}
+                </p>
+              ))}
+              {preview.preview.unparsed_lines?.map((line, i) => (
+                <p key={i}>{line}</p>
+              ))}
+            </details>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <a href={`/api/imports/${preview?.id}/file`}>Download original</a>
+            <Button
+              variant="outline"
+              onClick={() => setSelected(new Set(rows.map((_, i) => i)))}
+            >
+              Select all rows
+            </Button>
+            <Button variant="outline" onClick={() => setSelected(new Set())}>
+              Clear selection
+            </Button>
+          </div>
+          <TransactionTable
+            preview
+            rows={rows.slice(start, start + 100)}
+            offset={start}
+            selected={selected}
+            account={preview?.account}
+            onSelect={(id, checked) =>
+              setSelected((old) => {
+                const next = new Set(old);
+                if (checked) next.add(id);
+                else next.delete(id);
+                return next;
+              })
+            }
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="outline"
+              disabled={page === 1}
+              onClick={() => setPage(page - 1)}
+            >
+              Previous
+            </Button>
+            <span>
+              Page {page} of {Math.ceil(rows.length / 100)}
+            </span>
+            <Button
+              variant="outline"
+              disabled={start + 100 >= rows.length}
+              onClick={() => setPage(page + 1)}
+            >
+              Next
+            </Button>
+          </div>
+          <ErrorMessage error={commit.error} />
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+            <span>{selected.size} selected</span>
+            <Button disabled={commit.isPending} onClick={() => commit.mutate()}>
+              {commit.isPending ? "Working…" : "Import selected rows"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </section>
+  );
+}

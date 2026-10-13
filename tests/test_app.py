@@ -31,7 +31,8 @@ def commit(client, import_id, selected=None):
 
 def test_auth_and_csrf(client):
     assert client.get('/api/bootstrap').status_code==200
-    assert client.get('/tokens.css').status_code==200
+    assert client.get('/').status_code==200
+    assert 'type="module"' in client.get('/').text
     assert client.post('/api/ai/categorize',headers={'Origin':'https://attacker.invalid'}).status_code==403
     assert client.post('/api/ai/categorize',headers={'X-Requested-With':''}).status_code==403
     client.cookies.clear()

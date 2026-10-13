@@ -1,0 +1,275 @@
+import { useEffect, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { api, money, queryString } from "@/lib/api";
+import { useLedger } from "@/lib/state";
+import type { History, Transaction } from "@/lib/types";
+import {
+  ErrorMessage,
+  Loading,
+  Modal,
+  SelectField,
+  TextField,
+} from "@/components/shared";
+import { TransactionTable } from "@/components/transaction-table";
+export function Transactions() {
+  const { bootstrap, filters, invalidate, setNotice } = useLedger(),
+    [page, setPage] = useState(1),
+    [selected, setSelected] = useState(new Set<number>()),
+    [editing, setEditing] = useState<Transaction[]>([]);
+  useEffect(() => {
+    setPage(1);
+    setSelected(new Set());
+  }, [filters]);
+  const query = useQuery({
+    queryKey: ["transactions", filters, page],
+    queryFn: ({ signal }) =>
+      api<{ rows: Transaction[]; count: number; pages: number; page: number }>(
+        "/api/transactions?" + queryString(filters, { page: String(page) }),
+        { signal },
+      ),
+  });
+  const categorize = useMutation({
+    mutationFn: () =>
+      api<{ job_id: number | null }>("/api/ai/categorize", { method: "POST" }),
+    onSuccess: async (r) => {
+      setNotice(
+        r.job_id
+          ? `Categorization job #${r.job_id} queued. Review the suggestions when it finishes.`
+          : "No unknown transactions need categorization.",
+      );
+      await invalidate();
+    },
+  });
+  const [category, setCategory] = useState("Other"),
+    [subcategory, setSubcategory] = useState(""),
+    [kind, setKind] = useState(""),
+    [saveRule, setSaveRule] = useState(false);
+  const history = useQuery({
+    queryKey: ["history", editing[0]?.id],
+    queryFn: ({ signal }) =>
+      api<History[]>(`/api/transactions/${editing[0].id}/history`, { signal }),
+    enabled: editing.length === 1,
+  });
+  const edit = useMutation({
+    mutationFn: () =>
+      api("/api/transactions", {
+        method: "PATCH",
+        body: {
+          ids: editing.map((r) => r.id),
+          category,
+          subcategory,
+          kind: kind || null,
+          save_rule: saveRule,
+        },
+      }),
+    onSuccess: async () => {
+      setEditing([]);
+      setSelected(new Set());
+      setNotice("Transactions saved and marked reviewed.");
+      await invalidate();
+    },
+  });
+  function openEdit(rows: Transaction[]) {
+    if (!rows.length) {
+      setNotice("Select one or more transactions first.");
+      return;
+    }
+    setEditing(rows);
+    setCategory(rows[0].category);
+    setSubcategory(rows[0].subcategory);
+    setKind(rows.length === 1 ? rows[0].kind : "");
+    setSaveRule(false);
+    edit.reset();
+  }
+  return (
+    <section id="transactions">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2>Transaction ledger</h2>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            id="bulk-edit"
+            onClick={() =>
+              openEdit(
+                (query.data?.rows || []).filter((r) => selected.has(r.id)),
+              )
+            }
+          >
+            Edit selected{selected.size ? ` (${selected.size})` : ""}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={categorize.isPending}
+            onClick={() => categorize.mutate()}
+          >
+            Categorize unknowns
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              window.location.href = "/api/export?" + queryString(filters);
+            }}
+          >
+            Export CSV
+          </Button>
+        </div>
+      </div>
+      <p className="my-4 text-sm text-muted-foreground">
+        Expenses are positive and credits negative. Payments and transfers do
+        not count toward spending.
+      </p>
+      <ErrorMessage error={categorize.error} />
+      <div id="ledger">
+        {query.isPending ? (
+          <Loading />
+        ) : query.error ? (
+          <ErrorMessage error={query.error} />
+        ) : query.data.count ? (
+          <>
+            <TransactionTable
+              rows={query.data.rows}
+              selected={selected}
+              onSelect={(id, checked) =>
+                setSelected((old) => {
+                  const next = new Set(old);
+                  if (checked) next.add(id);
+                  else next.delete(id);
+                  return next;
+                })
+              }
+              onEdit={(r) => openEdit([r])}
+            />
+            <div className="my-6 flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline"
+                disabled={page === 1}
+                onClick={() => {
+                  setPage(page - 1);
+                  setSelected(new Set());
+                }}
+              >
+                Previous
+              </Button>
+              <span>
+                Page {page} of {query.data.pages} · {query.data.count} rows
+              </span>
+              <Button
+                variant="outline"
+                disabled={page >= query.data.pages}
+                onClick={() => {
+                  setPage(page + 1);
+                  setSelected(new Set());
+                }}
+              >
+                Next
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  setSelected(new Set(query.data.rows.map((r) => r.id)))
+                }
+              >
+                Select this page
+              </Button>
+            </div>
+          </>
+        ) : (
+          <p className="py-8 text-muted-foreground">
+            No transactions match your filters.
+          </p>
+        )}
+      </div>
+      <Modal
+        open={!!editing.length}
+        onOpenChange={(v) => {
+          if (!v) setEditing([]);
+        }}
+        id="edit-dialog"
+        title="Review transaction"
+        description="Corrections take priority over AI suggestions."
+      >
+        {editing.length === 1 && (
+          <div className="space-y-2">
+            <p>
+              <strong>{editing[0].vendor}</strong>
+              <br />
+              {editing[0].description}
+              <br />
+              {editing[0].date} · {money(editing[0].amount_cents)} ·{" "}
+              {editing[0].account}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Category source: {editing[0].category_source} ·{" "}
+              {editing[0].explanation}
+            </p>
+            <a href={`/api/imports/${editing[0].import_id}/file`}>
+              Download original statement
+            </a>
+            {!!history.data?.length && (
+              <details>
+                <summary>Correction history ({history.data.length})</summary>
+                {history.data.map((h, i) => (
+                  <p key={i}>
+                    {h.at} · {h.before.category} → {h.after.category} ·{" "}
+                    {h.before.kind} → {h.after.kind}
+                  </p>
+                ))}
+              </details>
+            )}
+            <ErrorMessage error={history.error} />
+          </div>
+        )}
+        <form
+          id="edit-form"
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            edit.mutate();
+          }}
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField
+              id="edit-category"
+              label="Category"
+              value={category}
+              onChange={setCategory}
+              required
+              maxLength={100}
+            />
+            <TextField
+              id="edit-subcategory"
+              label="Subcategory"
+              value={subcategory}
+              onChange={setSubcategory}
+              maxLength={100}
+            />
+            <SelectField
+              id="edit-kind"
+              label="Transaction type"
+              values={bootstrap.kinds}
+              value={kind}
+              onChange={setKind}
+              empty="Keep existing types"
+            />
+          </div>
+          <Label className="min-h-11 leading-normal">
+            <Checkbox
+              id="edit-rule"
+              checked={saveRule}
+              onCheckedChange={(v) => setSaveRule(!!v)}
+              disabled={new Set(editing.map((r) => r.vendor)).size !== 1}
+            />
+            Use this category for future purchases from this merchant
+          </Label>
+          <ErrorMessage error={edit.error} />
+          <Button disabled={edit.isPending}>
+            {edit.isPending ? "Working…" : "Save & mark reviewed"}
+          </Button>
+        </form>
+      </Modal>
+    </section>
+  );
+}

@@ -9,3 +9,7 @@ work
 data
 tests
 .hallmark
+**/node_modules
+frontend/dist
+.env.*
+!.env.example
