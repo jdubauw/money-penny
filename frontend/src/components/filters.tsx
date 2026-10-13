@@ -30,6 +30,22 @@ export function FiltersPanel() {
           apply(draft);
         }}
       >
+        {draft.spending === "true" && (
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span>Spending transactions only</span>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const next = { ...draft };
+                delete next.spending;
+                apply(next);
+              }}
+            >
+              Show all types
+            </Button>
+          </div>
+        )}
         {draft.vendor && (
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <span>Merchant: {draft.vendor}</span>

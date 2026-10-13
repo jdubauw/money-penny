@@ -1,7 +1,14 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Bootstrap, Filters } from "./types";
+import type { Bootstrap, Filters, ReportView } from "./types";
+interface ReportSelection {
+  view: ReportView;
+  period: string;
+  account: string;
+}
 interface AppState {
+  reportSelection: ReportSelection;
+  setReportSelection: (selection: ReportSelection) => void;
   bootstrap: Bootstrap;
   filters: Filters;
   draft: Filters;
@@ -22,6 +29,11 @@ export function LedgerProvider({
   const [filters, setFilters] = useState<Filters>({}),
     [draft, setDraft] = useState<Filters>({}),
     [notice, setNotice] = useState("");
+  const [reportSelection, setReportSelection] = useState<ReportSelection>({
+    view: "monthly",
+    period: "",
+    account: "",
+  });
   const client = useQueryClient();
   function apply(f: Filters) {
     const next = Object.fromEntries(
@@ -41,6 +53,8 @@ export function LedgerProvider({
     <Context.Provider
       value={{
         bootstrap,
+        reportSelection,
+        setReportSelection,
         filters,
         draft,
         setDraft,

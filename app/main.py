@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
 from urllib.parse import urlparse
+from typing import Literal
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
@@ -287,7 +288,7 @@ def commit(item_id: int, body: Commit, session=Depends(db)):
     return {"imported": len(selected)}
 
 
-def filtered(session, start=None, end=None, search=None, category=None, account=None, kind=None, review=False, min_amount=None, max_amount=None, vendor=None):
+def filtered(session, start=None, end=None, search=None, category=None, account=None, kind=None, review=False, min_amount=None, max_amount=None, vendor=None, spending=False):
     query = select(Transaction)
     if start:
         query = query.where(Transaction.date >= start)
@@ -307,6 +308,8 @@ def filtered(session, start=None, end=None, search=None, category=None, account=
         if kind not in KINDS:
             raise HTTPException(422, "Unsupported transaction type.")
         query = query.where(Transaction.kind == kind)
+    if spending:
+        query = query.where(Transaction.kind.in_(["purchase", "refund", "fee", "interest"]))
     if review:
         query = query.where(Transaction.needs_review.is_(True))
     if min_amount is not None:
@@ -319,7 +322,7 @@ def filtered(session, start=None, end=None, search=None, category=None, account=
 def filter_params(start: date | None = None, end: date | None = None, search: str | None = Query(None, max_length=200),
                   category: str | None = None, account: str | None = None, kind: str | None = None,
                   review: bool = False, min_amount: str | None = None, max_amount: str | None = None,
-                  vendor: str | None = Query(None, max_length=200)):
+                  vendor: str | None = Query(None, max_length=200), spending: bool = False):
     if start and end and start > end:
         raise HTTPException(422, "Start date must precede end date.")
     try:
@@ -331,7 +334,7 @@ def filter_params(start: date | None = None, end: date | None = None, search: st
             raise ValueError("Minimum amount must not exceed maximum amount.")
     except ValueError as exc:
         raise HTTPException(422, str(exc))
-    return dict(start=start, end=end, search=search, category=category, account=account, kind=kind, review=review, min_amount=min_amount, max_amount=max_amount, vendor=vendor)
+    return dict(start=start, end=end, search=search, category=category, account=account, kind=kind, review=review, min_amount=min_amount, max_amount=max_amount, vendor=vendor, spending=spending)
 
 
 def transaction_dict(row):
@@ -377,6 +380,20 @@ def reports(filters=Depends(filter_params), session=Depends(db)):
             "months": sorted(months.items()), "vendors": sorted(vendors.items(), key=lambda p: p[1], reverse=True)[:12],
             "date_start": min((r.date for r in rows), default=None), "date_end": max((r.date for r in rows), default=None),
             "statement_ranges": ranges}
+
+
+@app.get("/api/reports/spending", dependencies=[Depends(auth)])
+def period_spending(view: Literal["monthly", "quarterly", "yearly"] = "monthly",
+                    period: str | None = Query(None, max_length=7),
+                    account: str | None = Query(None, max_length=120), session=Depends(db)):
+    from app.reporting import spending_report
+    query = select(Transaction)
+    if account:
+        query = query.where(Transaction.account == account)
+    try:
+        return spending_report(session.scalars(query).all(), view, period)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
 
 
 class Edit(BaseModel):

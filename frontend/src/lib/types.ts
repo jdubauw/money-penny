@@ -92,3 +92,53 @@ export interface History {
   after: Transaction;
   at: string;
 }
+
+export type ReportView = "monthly" | "quarterly" | "yearly";
+export interface SpendingCategory {
+  name: string;
+  amount_cents: number;
+  percent: number | null;
+  transaction_count: number;
+}
+export interface SpendingPeriod {
+  key: string;
+  label: string;
+  start: string;
+  end: string;
+  spend_cents: number;
+  transaction_count: number;
+  has_data: boolean;
+  is_selected: boolean;
+}
+export interface SpendingReport {
+  view: ReportView;
+  period: string;
+  label: string;
+  start: string;
+  end: string;
+  is_current: boolean;
+  available_periods: { key: string; label: string }[];
+  year_end_period: string | null;
+  spend_cents: number;
+  count: number;
+  spending_count: number;
+  review_count: number;
+  unclassified_credit_cents: number;
+  purchases_cents: number;
+  refunds_cents: number;
+  fees_cents: number;
+  interest_cents: number;
+  categories: SpendingCategory[];
+  vendors: { name: string; amount_cents: number; transaction_count: number }[];
+  donut_total_cents: number;
+  donut_uses_positive_balances: boolean;
+  series: SpendingPeriod[];
+  average_cents: number | null;
+  average_period_count: number;
+  previous_label: string | null;
+  previous_spend_cents: number | null;
+  change_cents: number | null;
+  change_percent: number | null;
+  imported_start: string | null;
+  imported_through: string | null;
+}

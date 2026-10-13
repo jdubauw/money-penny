@@ -256,7 +256,7 @@ function Shell() {
             </Button>
           </div>
         )}
-        {["/", "/transactions"].includes(path) && <FiltersPanel />}
+        {path === "/transactions" && <FiltersPanel />}
         <Outlet />
         <footer className="mt-10 border-t pt-4 text-sm text-muted-foreground">
           Spending Ledger · Reports reflect imported transactions and your

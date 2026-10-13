@@ -167,3 +167,276 @@
     transition: none !important;
   }
 }
+
+/* Hallmark · pre-emit critique: P4 H5 E4 S5 R4 V4
+ * Reporting screen · screenshot reference: period controls, history, category table + donut.
+ * Existing React routes and brand retained; charts are linked to actual imported data. */
+:root {
+  --report-surface: oklch(99% 0.003 240);
+  --report-blue: oklch(48% 0.17 250);
+  --report-blue-selected: oklch(36% 0.14 250);
+  --report-rule: oklch(84% 0.014 240);
+  --chart-pink: oklch(65% 0.16 355);
+  --chart-green: oklch(34% 0.075 175);
+  --chart-teal: oklch(50% 0.1 175);
+  --chart-purple: oklch(42% 0.11 320);
+  --chart-blue: oklch(48% 0.17 250);
+  --chart-gold: oklch(51% 0.1 95);
+  --chart-navy: oklch(30% 0.09 255);
+  --chart-plum: oklch(35% 0.12 330);
+  --chart-cyan: oklch(57% 0.1 220);
+  --chart-orange: oklch(61% 0.15 50);
+  --chart-olive: oklch(48% 0.065 125);
+  --chart-violet: oklch(52% 0.15 290);
+  --chart-brown: oklch(43% 0.055 55);
+  --chart-slate: oklch(47% 0.06 255);
+  --chart-red: oklch(50% 0.17 25);
+  --chart-gray: oklch(58% 0.02 240);
+}
+.spending-report h2 {
+  font-family: var(--font-body);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.report-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.report-tab {
+  border-radius: 0;
+  border-bottom: 3px solid transparent;
+  color: var(--muted-foreground);
+}
+.report-tab[aria-pressed="true"] {
+  border-bottom-color: var(--report-blue);
+  color: var(--report-blue);
+}
+.report-selectors {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--report-rule);
+  border-radius: 0.75rem;
+  background: var(--report-surface);
+  margin-bottom: 1.5rem;
+}
+.report-card {
+  padding: 1.25rem;
+  border: 1px solid var(--report-rule);
+  border-radius: 0.75rem;
+  background: var(--report-surface);
+  min-width: 0;
+}
+.report-main-grid,
+.report-category-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+.report-summary .metric {
+  font-family: var(--font-body);
+  font-weight: 500;
+}
+.report-summary > button {
+  width: 100%;
+}
+.report-category-table {
+  width: 100%;
+  font-size: 0.875rem;
+  border-collapse: collapse;
+}
+.report-category-table th {
+  font-weight: 500;
+  border-bottom: 2px solid var(--report-rule);
+  padding-block: 0.25rem;
+  white-space: normal;
+}
+.report-category-table td {
+  padding-block: 0.375rem;
+  border-bottom: 1px solid var(--report-rule);
+}
+.report-category-table th:not(:first-child),
+.report-category-table td:not(:first-child) {
+  padding-inline-start: 0.5rem;
+}
+.category-link {
+  display: flex;
+  justify-content: start;
+  min-width: 0;
+  max-width: 100%;
+  padding-inline: 0;
+  color: var(--report-blue);
+}
+.category-dot {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--category-color);
+}
+.report-color-0 {
+  --category-color: var(--chart-pink);
+}
+.report-color-1 {
+  --category-color: var(--chart-green);
+}
+.report-color-2 {
+  --category-color: var(--chart-teal);
+}
+.report-color-3 {
+  --category-color: var(--chart-purple);
+}
+.report-color-4 {
+  --category-color: var(--chart-blue);
+}
+.report-color-5 {
+  --category-color: var(--chart-gold);
+}
+.report-color-6 {
+  --category-color: var(--chart-navy);
+}
+.report-color-7 {
+  --category-color: var(--chart-plum);
+}
+.report-color-8 {
+  --category-color: var(--chart-cyan);
+}
+.report-color-9 {
+  --category-color: var(--chart-orange);
+}
+.report-color-10 {
+  --category-color: var(--chart-olive);
+}
+.report-color-11 {
+  --category-color: var(--chart-violet);
+}
+.report-color-12 {
+  --category-color: var(--chart-brown);
+}
+.report-color-13 {
+  --category-color: var(--chart-slate);
+}
+.report-color-14 {
+  --category-color: var(--chart-red);
+}
+.report-color-15 {
+  --category-color: var(--chart-gray);
+}
+.donut-segment {
+  stroke: var(--category-color);
+}
+.donut-track {
+  stroke: var(--muted);
+}
+.donut-label,
+.donut-total {
+  fill: var(--foreground);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+.donut-total {
+  font-size: 19px;
+}
+.chart-grid {
+  stroke: var(--report-rule);
+  stroke-width: 0.5;
+}
+.chart-average {
+  stroke: var(--muted-foreground);
+  stroke-dasharray: 4 3;
+}
+.chart-bar {
+  fill: var(--report-blue);
+}
+.chart-bar-selected {
+  fill: var(--report-blue-selected);
+}
+.chart-missing {
+  fill: url(#no-imports);
+  stroke: var(--report-rule);
+}
+.missing-stroke {
+  stroke: var(--report-rule);
+}
+.chart-label {
+  fill: var(--muted-foreground);
+  font-family: var(--font-body);
+  font-size: 18px;
+}
+.selected-label {
+  fill: var(--foreground);
+  font-weight: 700;
+}
+.report-coverage {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  line-height: 1.7;
+}
+@media (min-width: 40rem) {
+  .report-selectors {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding: 1.5rem;
+  }
+  .report-selectors > :last-child {
+    justify-self: end;
+    width: min(100%, 260px);
+  }
+}
+@media (min-width: 75rem) {
+  .report-main-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  }
+  .report-category-grid {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 40rem) {
+  .report-card {
+    padding: 1rem;
+  }
+  .report-category-table {
+    font-size: 0.8rem;
+  }
+  .report-category-table th button {
+    font-size: 0.8rem;
+  }
+  .report-category-table td:first-child {
+    max-width: 140px;
+  }
+  .report-category-table .category-link {
+    max-width: 140px;
+  }
+  .report-category-table .category-link > svg {
+    display: none;
+  }
+}
+@media (max-width: 40rem) {
+  .report-category-table {
+    table-layout: fixed;
+  }
+  .report-category-table th:first-child {
+    width: 44%;
+  }
+  .report-category-table th:nth-child(2) {
+    width: 30%;
+  }
+  .report-category-table th:nth-child(3) {
+    width: 26%;
+  }
+  .report-category-table .category-link {
+    width: 100%;
+    max-width: 100%;
+    font-size: 0.8rem;
+  }
+  .report-category-table th button {
+    gap: 0.25rem;
+  }
+}
+.donut-label,
+.donut-total {
+  pointer-events: none;
+}
