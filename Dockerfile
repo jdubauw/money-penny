@@ -16,5 +16,5 @@ COPY scripts/process_statements.py ./scripts/process_statements.py
 COPY --from=frontend /frontend/dist ./app/static
 RUN useradd --create-home --uid 10001 ledger && mkdir -p /data && chown ledger:ledger /data
 USER ledger
-EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*"]
+EXPOSE 3005
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "3005", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*"]

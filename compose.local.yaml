@@ -1,7 +1,7 @@
 services:
   web:
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:3005:3005"
     environment:
       COOKIE_SECURE: "false"
-      APP_ORIGIN: http://localhost:8000
+      APP_ORIGIN: http://localhost:3005

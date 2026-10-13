@@ -23,7 +23,7 @@ The Dockerfile uses a Node build stage to compile the frontend and copies only t
 1. Put the application source in a **private Git repository** accessible to Coolify. The `.gitignore` excludes `input/`, `outputs/`, extracted private transaction JSON, local data, and `.env`. Review the files before publishing; the existing report-builder scripts contain household-specific merchant rules.
 2. Create a Git-based application, choose the **Docker Compose** build strategy, set Base Directory to `/`, and Compose Location to `/compose.yaml`.
 3. Configure the environment variables below. Use long random credentials. A hex password avoids special characters in the database connection URL. Generate separate secrets with `python -c 'import secrets; print(secrets.token_hex(32))'`.
-4. Assign your domain to the **web** service at internal port **8000**, for example `https://spending.example.com:8000`. Set `APP_ORIGIN=https://spending.example.com` without the port suffix used for Coolify routing. Keep `COOKIE_SECURE=true` for HTTPS.
+4. Assign your domain to the **web** service at internal port **3005**, for example `https://spending.example.com:3005`. Set `APP_ORIGIN=https://spending.example.com` without the port suffix used for Coolify routing. Keep `COOKIE_SECURE=true` for HTTPS.
 5. Deploy and check the web service's `/health` endpoint and worker logs. Sign in with `APP_USERNAME` and `APP_PASSWORD`, upload an export, and approve its preview.
 
 | Variable | Purpose |
@@ -91,7 +91,7 @@ python3 -m venv .venv
 cp .env.example .env
 ```
 
-Fill in `.env`. For an HTTP development preview, set `APP_ORIGIN=http://localhost:8000` and `COOKIE_SECURE=false`. Start the stack with:
+Fill in `.env`. For an HTTP development preview, set `APP_ORIGIN=http://localhost:3005` and `COOKIE_SECURE=false`. Start the stack with:
 
 ```sh
 docker compose -f compose.yaml -f compose.local.yaml up --build -d
@@ -109,11 +109,11 @@ cd ..
 Then export the relevant environment variables in your shell and run these in two terminals:
 
 ```sh
-.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 3005
 .venv/bin/python -m app.worker
 ```
 
-For frontend hot reload, run `npm run dev` from `frontend/` in a third terminal and open `http://localhost:5173/static/`. Set backend `APP_ORIGIN=http://localhost:5173` and `COOKIE_SECURE=false` for this development session. Vite proxies `/api` to FastAPI on port 8000, preserving the HTTP-only session cookie. For testing the compiled UI served by FastAPI, use `APP_ORIGIN=http://localhost:8000` instead.
+For frontend hot reload, run `npm run dev` from `frontend/` in a third terminal and open `http://localhost:5173/static/`. Set backend `APP_ORIGIN=http://localhost:5173` and `COOKIE_SECURE=false` for this development session. Vite proxies `/api` to FastAPI on port 3005, preserving the HTTP-only session cookie. For testing the compiled UI served by FastAPI, use `APP_ORIGIN=http://localhost:3005` instead.
 
 `npm run build` type-checks and builds the frontend. `npm run format:check` checks the TypeScript, React, and CSS formatting. The checked-in `frontend/components.json` lets you add shadcn components from `frontend/` with `npx shadcn@latest add COMPONENT`.
 
