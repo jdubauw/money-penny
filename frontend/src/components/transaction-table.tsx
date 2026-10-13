@@ -15,6 +15,7 @@ export function TransactionTable({
   rows,
   selected,
   onSelect,
+  onSelectAll,
   onEdit,
   preview = false,
   offset = 0,
@@ -23,17 +24,41 @@ export function TransactionTable({
   rows: Transaction[];
   selected: Set<number>;
   onSelect: (id: number, checked: boolean) => void;
+  onSelectAll?: (checked: boolean) => void;
   onEdit?: (row: Transaction) => void;
   preview?: boolean;
   offset?: number;
   account?: string;
 }) {
+  const selectedOnPage = rows.filter((r, i) =>
+    selected.has(preview ? offset + i : r.id),
+  ).length;
   return (
     <Table className="ledger-table">
       <TableHeader>
         <TableRow>
+          <TableHead>
+            {onSelectAll ? (
+              <label className="flex items-center gap-2">
+                <Checkbox
+                  aria-label="Select all transactions on this page"
+                  disabled={!rows.length}
+                  checked={
+                    rows.length > 0 && selectedOnPage === rows.length
+                      ? true
+                      : selectedOnPage > 0
+                        ? "indeterminate"
+                        : false
+                  }
+                  onCheckedChange={(value) => onSelectAll(value === true)}
+                />
+                Select all
+              </label>
+            ) : (
+              "Select"
+            )}
+          </TableHead>
           {[
-            "Select",
             "Date",
             "Merchant / description",
             "Account",

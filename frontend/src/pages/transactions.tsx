@@ -132,6 +132,11 @@ export function Transactions() {
             <TransactionTable
               rows={query.data.rows}
               selected={selected}
+              onSelectAll={(checked) =>
+                setSelected(
+                  new Set(checked ? query.data.rows.map((r) => r.id) : []),
+                )
+              }
               onSelect={(id, checked) =>
                 setSelected((old) => {
                   const next = new Set(old);
