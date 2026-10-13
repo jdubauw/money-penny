@@ -1,0 +1,32 @@
+:root {
+  --color-paper: oklch(98% .007 155);
+  --color-surface: oklch(96% .009 155);
+  --color-ink: oklch(24% .016 155);
+  --color-muted: oklch(45% .014 155);
+  --color-rule: oklch(83% .015 155);
+  --color-accent: oklch(40% .075 155);
+  --color-accent-ink: oklch(98% .007 155);
+  --color-focus: oklch(25% .04 155);
+  --color-error: oklch(42% .15 25);
+  --color-warning: oklch(95% .045 85);
+  --color-warning-ink: oklch(32% .065 65);
+  --color-backdrop: oklch(24% .016 155 / .5);
+  --font-display: 'Palatino', 'Palatino Linotype', 'Book Antiqua', ui-serif, serif;
+  --font-body: 'Avenir Next', 'Avenir', 'Segoe UI', ui-sans-serif, sans-serif;
+  --font-mono: 'SFMono-Regular', 'DejaVu Sans Mono', ui-monospace, monospace;
+  --space-xs: .25rem;
+  --space-sm: .5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --text-sm: .875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5625rem;
+  --text-display: clamp(2rem, 3vw, 3rem);
+  --radius-sm: .25rem;
+  --rule-width: 1px;
+  --dur-fast: 120ms;
+  --ease-default: ease-out;
+}
