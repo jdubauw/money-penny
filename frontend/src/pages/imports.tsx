@@ -9,6 +9,11 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import { api, money } from "@/lib/api";
+import {
+  uploadStatements,
+  type UploadBatch,
+  type UploadResult,
+} from "@/lib/upload-statements";
 import { useLedger } from "@/lib/state";
 import type { ImportRecord } from "@/lib/types";
 import {
@@ -35,8 +40,9 @@ export function Imports() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [account, setAccount] = useState(""),
     [accountKind, setAccountKind] = useState("credit"),
-    [file, setFile] = useState<File | null>(null),
+    [files, setFiles] = useState<File[]>([]),
     [prefs, setPrefs] = useState<Preferences>(defaults);
+  const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
   const [preview, setPreview] = useState<ImportRecord | null>(null),
     [selected, setSelected] = useState(new Set<number>()),
     [page, setPage] = useState(1),
@@ -70,33 +76,40 @@ export function Imports() {
     },
   });
   const upload = useMutation({
-    mutationFn: async () => {
-      if (!file) throw new Error("Choose a CSV or PDF file.");
-      const body = new FormData();
-      body.set("file", file);
-      body.set("account", account);
-      body.set("account_kind", accountKind);
-      body.set("options", JSON.stringify(prefs));
-      return api<ImportRecord & { already_uploaded?: boolean }>(
-        "/api/imports",
-        { method: "POST", body },
-      );
+    mutationFn: async (batch: UploadBatch) => {
+      if (!batch.files.length)
+        throw new Error("Choose one or more CSV or PDF files.");
+      return uploadStatements(batch, setUploadResults);
     },
-    onSuccess: async (item) => {
+    onSuccess: async (results, batch) => {
       try {
-        localStorage.setItem("csv:" + account.trim(), JSON.stringify(prefs));
+        localStorage.setItem(
+          "csv:" + batch.account.trim(),
+          JSON.stringify(batch.options),
+        );
       } catch {
         /* Browser storage may be unavailable. */
       }
-      setFile(null);
+      const failed = results.filter((result) => result.status === "failed");
+      setFiles(failed.map((result) => result.file));
       if (fileInput.current) fileInput.current.value = "";
+      const uploaded = results.filter(
+        (result) => result.status === "uploaded",
+      ).length;
+      const duplicates = results.filter(
+        (result) => result.status === "duplicate",
+      ).length;
       setNotice(
-        item.already_uploaded
-          ? "This file was already uploaded."
-          : "Extraction is queued. Review the import when it is ready.",
+        uploaded +
+          " uploaded · " +
+          duplicates +
+          " already uploaded · " +
+          failed.length +
+          " failed. Review each statement in the archive when extraction finishes.",
       );
       await invalidate();
-      if (item.status === "preview") open.mutate(item.id);
+      if (results.length === 1 && results[0].item?.status === "preview")
+        open.mutate(results[0].item.id);
     },
   });
   const commit = useMutation({
@@ -130,125 +143,187 @@ export function Imports() {
         className="max-w-4xl space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
-          upload.mutate();
+          upload.mutate({
+            files: [...files],
+            account,
+            accountKind,
+            options: structuredClone(prefs),
+          });
         }}
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="statement-file" label="Statement export">
-            <Input
-              ref={fileInput}
-              id="statement-file"
-              type="file"
-              accept=".csv,.pdf"
-              required
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-            />
-            <p className="text-sm text-muted-foreground">
-              CSV or supported Chase credit-card PDF, up to 25 MB.
-            </p>
-          </Field>
-          <Field id="account-name" label="Account name">
-            <Input
-              id="account-name"
-              list="account-list"
-              value={account}
-              onChange={(e) => accountChanged(e.target.value)}
-              required
-              maxLength={120}
-              placeholder="Chase •••• 2956"
-            />
-            <datalist id="account-list">
-              {bootstrap.accounts.map((a) => (
-                <option key={a} value={a} />
-              ))}
-            </datalist>
-            <p className="text-sm text-muted-foreground">
-              Use the same account name for repeated uploads.
-            </p>
-          </Field>
-          <Field id="account-kind" label="Account type">
-            <NativeSelect
-              id="account-kind"
-              value={accountKind}
-              onChange={(e) => setAccountKind(e.target.value)}
-            >
-              <NativeSelectOption value="credit">
-                Credit card
-              </NativeSelectOption>
-              <NativeSelectOption value="checking">
-                Checking / bank
-              </NativeSelectOption>
-            </NativeSelect>
-          </Field>
-        </div>
-        <details className="border-y py-4">
-          <summary>CSV format and column mapping</summary>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field id="date-format" label="Date format">
-              <NativeSelect
-                id="date-format"
-                value={prefs.date_format}
-                onChange={(e) =>
-                  setPrefs({ ...prefs, date_format: e.target.value })
-                }
-              >
-                {[
-                  ["%m/%d/%Y", "MM/DD/YYYY"],
-                  ["%m/%d/%y", "MM/DD/YY"],
-                  ["%d/%m/%Y", "DD/MM/YYYY"],
-                  ["%Y-%m-%d", "YYYY-MM-DD"],
-                ].map(([v, label]) => (
-                  <NativeSelectOption key={v} value={v}>
-                    {label}
-                  </NativeSelectOption>
+        <fieldset disabled={upload.isPending} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id="statement-file" label="Statement exports">
+              <Input
+                ref={fileInput}
+                id="statement-file"
+                type="file"
+                accept=".csv,.pdf"
+                multiple
+                onChange={(e) => {
+                  const selectedFiles = Array.from(e.target.files || []);
+                  setFiles(selectedFiles);
+                  setUploadResults(
+                    selectedFiles.map((file) => ({ file, status: "waiting" })),
+                  );
+                  upload.reset();
+                }}
+              />
+              <p className="text-sm text-muted-foreground">
+                Select multiple CSVs or supported Chase credit-card PDFs for
+                this account. Up to 25 MB per file.
+              </p>
+            </Field>
+            <Field id="account-name" label="Account name">
+              <Input
+                id="account-name"
+                list="account-list"
+                value={account}
+                onChange={(e) => accountChanged(e.target.value)}
+                required
+                maxLength={120}
+                placeholder="Chase •••• 2956"
+              />
+              <datalist id="account-list">
+                {bootstrap.accounts.map((a) => (
+                  <option key={a} value={a} />
                 ))}
-              </NativeSelect>
+              </datalist>
+              <p className="text-sm text-muted-foreground">
+                Use the same account name for repeated uploads.
+              </p>
             </Field>
-            <Field id="amount-sign" label="Amount convention">
+            <Field id="account-kind" label="Account type">
               <NativeSelect
-                id="amount-sign"
-                value={prefs.negative_expenses ? "negative" : "positive"}
-                onChange={(e) =>
-                  setPrefs({
-                    ...prefs,
-                    negative_expenses: e.target.value === "negative",
-                  })
-                }
+                id="account-kind"
+                value={accountKind}
+                onChange={(e) => setAccountKind(e.target.value)}
               >
-                <NativeSelectOption value="positive">
-                  Expenses are positive
+                <NativeSelectOption value="credit">
+                  Credit card
                 </NativeSelectOption>
-                <NativeSelectOption value="negative">
-                  Expenses are negative
+                <NativeSelectOption value="checking">
+                  Checking / bank
                 </NativeSelectOption>
               </NativeSelect>
             </Field>
-            {["date", "description", "amount", "debit", "credit", "type"].map(
-              (k) => (
-                <TextField
-                  key={k}
-                  id={"map-" + k}
-                  label={k + " column"}
-                  value={prefs.mapping[k] || ""}
-                  placeholder="Auto-detect"
-                  onChange={(v) =>
+          </div>
+          <details className="border-y py-4">
+            <summary>CSV format and column mapping</summary>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Field id="date-format" label="Date format">
+                <NativeSelect
+                  id="date-format"
+                  value={prefs.date_format}
+                  onChange={(e) =>
+                    setPrefs({ ...prefs, date_format: e.target.value })
+                  }
+                >
+                  {[
+                    ["%m/%d/%Y", "MM/DD/YYYY"],
+                    ["%m/%d/%y", "MM/DD/YY"],
+                    ["%d/%m/%Y", "DD/MM/YYYY"],
+                    ["%Y-%m-%d", "YYYY-MM-DD"],
+                  ].map(([v, label]) => (
+                    <NativeSelectOption key={v} value={v}>
+                      {label}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field id="amount-sign" label="Amount convention">
+                <NativeSelect
+                  id="amount-sign"
+                  value={prefs.negative_expenses ? "negative" : "positive"}
+                  onChange={(e) =>
                     setPrefs({
                       ...prefs,
-                      mapping: { ...prefs.mapping, [k]: v },
+                      negative_expenses: e.target.value === "negative",
                     })
                   }
-                />
-              ),
-            )}
+                >
+                  <NativeSelectOption value="positive">
+                    Expenses are positive
+                  </NativeSelectOption>
+                  <NativeSelectOption value="negative">
+                    Expenses are negative
+                  </NativeSelectOption>
+                </NativeSelect>
+              </Field>
+              {["date", "description", "amount", "debit", "credit", "type"].map(
+                (k) => (
+                  <TextField
+                    key={k}
+                    id={"map-" + k}
+                    label={k + " column"}
+                    value={prefs.mapping[k] || ""}
+                    placeholder="Auto-detect"
+                    onChange={(v) =>
+                      setPrefs({
+                        ...prefs,
+                        mapping: { ...prefs.mapping, [k]: v },
+                      })
+                    }
+                  />
+                ),
+              )}
+            </div>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Enter exact CSV header names when automatic detection is
+              insufficient. Debit/Credit columns take positive values.
+            </p>
+          </details>
+        </fieldset>
+        {uploadResults.length > 0 && (
+          <div
+            id="upload-results"
+            className="space-y-2"
+            aria-live="polite"
+            aria-busy={upload.isPending}
+          >
+            <p className="text-sm text-muted-foreground">
+              {upload.isPending
+                ? uploadResults.filter(
+                    (r) => !["waiting", "uploading"].includes(r.status),
+                  ).length +
+                  " of " +
+                  uploadResults.length +
+                  " files processed"
+                : files.length + " file(s) ready to upload"}
+            </p>
+            {uploadResults.map((result, index) => (
+              <div
+                key={index}
+                data-upload-status={result.status}
+                className="rounded-md border p-3"
+              >
+                <div className="flex flex-wrap justify-between gap-2">
+                  <span className="break-all">{result.file.name}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {
+                      {
+                        waiting: "Ready",
+                        uploading: "Uploading…",
+                        uploaded: "Uploaded · extraction queued",
+                        duplicate: "Already uploaded",
+                        failed: "Upload failed",
+                      }[result.status]
+                    }
+                  </span>
+                </div>
+                <ErrorMessage error={result.error} />
+              </div>
+            ))}
           </div>
-          <p className="mt-4 text-sm text-muted-foreground">
-            Enter exact CSV header names when automatic detection is
-            insufficient. Debit/Credit columns take positive values.
-          </p>
-        </details>
+        )}
         <ErrorMessage error={upload.error} />
         <Button disabled={upload.isPending}>
-          {upload.isPending ? "Working…" : "Upload & preview"}
+          {upload.isPending
+            ? "Uploading…"
+            : files.length > 0 &&
+                uploadResults.some((r) => r.status === "failed")
+              ? "Retry failed uploads"
+              : "Upload & preview"}
         </Button>
         <p className="text-sm text-muted-foreground">
           CSV preferences are saved in this browser for each account.

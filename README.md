@@ -4,6 +4,7 @@ A private, single-user web application for uploading bank exports, reviewing tra
 
 ## What works
 
+- Multi-file uploads for one account with per-file progress, independent errors, and failed-only retries. Each CSV/PDF retains its own preview and reconciliation; the 25 MB limit applies per file.
 - CSV uploads with automatic header detection, explicit column mapping, configurable date format, expenses-positive/negative convention, and separate Debit/Credit columns.
 - Text-based Chase credit-card PDFs matching the statements in this project. Purchases, payments/credits, fees, and interest are reconciled against statement totals.
 - Import previews with row selection, possible-duplicate flags, original-file downloads, and explicit acknowledgement of reconciliation warnings. Reports include only committed rows.
@@ -67,6 +68,8 @@ Natural-language filtering sends your question, current date, and available acco
 
 ## Import and accounting behavior
 
+Select multiple statements in the upload picker to queue them for the same account. CSV options apply to every CSV in that selection. One failed upload does not stop the remaining files; use **Retry failed uploads** to resend only failed files. Review and approve each statement separately, in order, so later previews can check overlaps against earlier approvals.
+
 Use a stable account name, such as `Chase 2956`, for all exports from the same account. Uploads are read as untrusted data; no AI is used to extract transaction dates or amounts.
 
 CSV dates support ISO dates plus the selected date format. Amounts use a period as decimal separator and optional comma thousands separators. Specify either Amount or Debit/Credit columns. A recognized Type column can contain `purchase`, `refund`, `payment`, `transfer`, `income`, `fee`, `interest`, or `credit` (`sale` and `return` are also recognized).
@@ -115,7 +118,7 @@ For frontend hot reload, run `npm run dev` from `frontend/` in a third terminal 
 
 Build the frontend before running backend tests with `.venv/bin/python -m pytest -q`. Tests create an isolated temporary database and mock the AI providers. The private-PDF reconciliation check runs only when the original `input/` PDFs are present.
 
-The optional `tests/browser-smoke.cjs` runs a full browser workflow against an isolated deployment with the Node `playwright` package and Chromium installed. Supply `TEST_APP_URL`, `APP_USERNAME`, and `APP_PASSWORD` in the environment (or `TEST_ENV_FILE` pointing to a private test `.env`). It creates synthetic transactions and rules; never run it against your production ledger. It also saves screenshots in `outputs/app-preview/` and checks mobile layouts.
+The optional `tests/browser-smoke.cjs` runs a full browser workflow against an isolated deployment with the Node `playwright` package and Chromium installed. Supply `TEST_APP_URL`, `APP_USERNAME`, and `APP_PASSWORD` in the environment (or `TEST_ENV_FILE` pointing to a private test `.env`). It creates synthetic transactions and rules; never run it against your production ledger. The companion `tests/browser-batch.cjs` checks batch uploads, partial failures, failed-only retries, duplicate detection, and per-statement approval against the same isolated deployment. It also creates synthetic transactions; do not run it against production. The main browser smoke test saves screenshots in `outputs/app-preview/` and checks mobile layouts.
 
 Run one worker process. Interrupted jobs are requeued when that worker restarts; completed imports are not committed automatically.
 
