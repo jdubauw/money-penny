@@ -380,6 +380,13 @@ export function Imports() {
         description="Check the extracted rows against your original statement."
       >
         <div id="preview-content" className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+            <span>{selected.size} selected</span>
+            <Button disabled={commit.isPending} onClick={() => commit.mutate()}>
+              {commit.isPending ? "Working…" : "Import selected rows"}
+            </Button>
+          </div>
+          <ErrorMessage error={commit.error} />
           <p>
             <strong>{preview?.filename}</strong> · {preview?.account}
           </p>
@@ -468,13 +475,6 @@ export function Imports() {
               onClick={() => setPage(page + 1)}
             >
               Next
-            </Button>
-          </div>
-          <ErrorMessage error={commit.error} />
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-            <span>{selected.size} selected</span>
-            <Button disabled={commit.isPending} onClick={() => commit.mutate()}>
-              {commit.isPending ? "Working…" : "Import selected rows"}
             </Button>
           </div>
         </div>
