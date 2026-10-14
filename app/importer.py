@@ -13,7 +13,7 @@ from scripts.process_statements import (OPEN_CLOSE_RE, SUMMARY_PATTERNS, TX_RE,
 
 KINDS = ["purchase", "refund", "payment", "transfer", "income", "fee", "interest", "credit"]
 CATEGORIES = ["Food", "Travel", "Pets", "Kids & Family", "Home", "Personal Care", "Health",
-              "Transportation", "Entertainment", "Business & Technology", "Bills & Utilities",
+              "Transportation", "Entertainment", "Subscriptions", "Business & Technology", "Bills & Utilities",
               "Professional Services", "Gifts & Giving", "Taxes & Government", "Shopping", "Gas", "Payments", "Other"]
 
 
@@ -69,8 +69,8 @@ def make_row(tx_date, description, amount, kind):
         category, subcategory = "Food", "Dining"
     elif re.search(r"\bPHILLIPS\s*66\b", d):
         category, subcategory = "Gas", "Fuel"
-    elif re.search(r"\bYOUTUBE\s*TV\b", d):
-        category, subcategory = "Entertainment", "TV & Streaming"
+    elif re.search(r"\b(?:NETFLIX|SPOTIFY|HULU|DISNEY\s*(?:PLUS|\+)|YOUTUBE\s*(?:TV|PREMIUM)|APPLE\s*TV\s*\+|PARAMOUNT\s*(?:PLUS|\+)|PEACOCK(?:\s*TV)?)(?![A-Z0-9])", d):
+        category, subcategory = "Subscriptions", "Streaming"
     if kind == "credit" and amount < 0 and transaction_kind(description, amount, "credit") == "payment":
         kind = "payment"
     if kind not in ["purchase", "refund", "fee", "interest"]:

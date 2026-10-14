@@ -344,7 +344,7 @@ def test_reset_retry_finishes_failed_file_cleanup(client,monkeypatch):
     ('SQ *COSMIC ICE CREAM CO. Houston TX',1389,'purchase','Food','purchase'),
     ('PHILLIPS 66 - SKIPPERS HUNTSVILLE TX',9331,'purchase','Gas','purchase'),
     ('AUTOMATIC PAYMENT - THANK YOU',-4000,'credit','Payments','payment'),
-    ('GOOGLE *YOUTUBETV g.co/helppay# CA',8984,'purchase','Entertainment','purchase'),
+    ('GOOGLE *YOUTUBETV g.co/helppay# CA',8984,'purchase','Subscriptions','purchase'),
     ('SQ *UNKNOWN STORE Houston TX',2000,'purchase','Other','purchase'),
 ])
 def test_specific_merchant_rules(description,amount,kind,category,expected_kind):
@@ -368,7 +368,7 @@ def test_apply_builtin_rules_updates_existing_unknowns_and_preserves_manual(clie
     assert result.status_code==200 and result.json()['updated']==4
     with Session() as session:
         rows=session.query(Transaction).order_by(Transaction.row_index).all()
-        assert [r.category for r in rows]==['Food','Gas','Payments','Entertainment','Other','Other']
+        assert [r.category for r in rows]==['Food','Gas','Payments','Subscriptions','Other','Other']
         assert rows[2].kind=='payment' and rows[2].amount_cents==-4000
         assert not rows[2].needs_review
         assert rows[5].category_source=='manual'
@@ -473,3 +473,14 @@ def test_duplicate_cleanup_preserves_identical_purchase_multiplicity(client):
     summary = client.get(f"/api/imports/{second}/duplicates").json()
     assert summary["matched_rows"] == 1 and summary["rows"] == 2
     assert not summary["can_remove"]
+
+@pytest.mark.parametrize("description", ["NETFLIX.COM", "Spotify USA", "HULU", "DISNEY PLUS", "DISNEY+", "PARAMOUNT+", "PEACOCK TV", "GOOGLE *YOUTUBETV", "GOOGLE *YOUTUBE PREMIUM", "APPLE TV+"])
+def test_streaming_subscriptions(description):
+    from datetime import date
+    from app.importer import make_row
+    row = make_row(date(2026, 9, 1), description, 1599, "purchase")
+    assert row["category"] == "Subscriptions"
+    assert row["subcategory"] == "Streaming"
+
+def test_subscriptions_available_in_bootstrap(client):
+    assert "Subscriptions" in client.get("/api/bootstrap").json()["categories"]
