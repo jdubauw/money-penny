@@ -1,4 +1,9 @@
-import { SlidersHorizontal, ChevronDown } from "lucide-react";
+import {
+  SlidersHorizontal,
+  ChevronDown,
+  Sparkles,
+  RotateCcw,
+} from "lucide-react";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -9,12 +14,17 @@ import { api } from "@/lib/api";
 import { useLedger } from "@/lib/state";
 import type { FilterPlan } from "@/lib/types";
 import { ErrorMessage, Modal, SelectField, TextField } from "./shared";
-export function FiltersPanel() {
+export function FiltersPanel({
+  count,
+  shown,
+}: {
+  count?: number;
+  shown?: number;
+}) {
   const { bootstrap, draft, setDraft, apply } = useLedger(),
     navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
-  const [ask, setAsk] = useState(false),
-    [question, setQuestion] = useState(""),
+  const [question, setQuestion] = useState(""),
     [plan, setPlan] = useState<FilterPlan | null>(null);
   const mutation = useMutation({
     mutationFn: () =>
@@ -41,6 +51,37 @@ export function FiltersPanel() {
         id="ledger-filter-content"
         className={expanded ? "block" : "hidden md:block"}
       >
+        <form
+          className="transaction-ai-filter"
+          onSubmit={(e) => {
+            e.preventDefault();
+            mutation.mutate();
+          }}
+        >
+          <div className="transaction-ai-title">
+            <Sparkles className="size-4" />
+            Ask AI to filter
+          </div>
+          <div className="transaction-ai-input">
+            <TextField
+              id="question"
+              label="Describe the transactions you want to see"
+              value={question}
+              onChange={setQuestion}
+              required
+              placeholder="Dining purchases over $50 this year"
+            />
+            <Button disabled={mutation.isPending || !question.trim()}>
+              {mutation.isPending ? "Working…" : "Preview filters"}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Sends your question plus category and account labels — never
+            transaction data.
+          </p>
+          <ErrorMessage error={mutation.error} />
+        </form>
+
         <form
           id="filter-form"
           onSubmit={(e) => {
@@ -82,7 +123,7 @@ export function FiltersPanel() {
             </div>
           )}
           <input id="f-vendor" type="hidden" value={draft.vendor || ""} />
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="transaction-filter-grid">
             <TextField
               id="f-start"
               label="From"
@@ -118,7 +159,7 @@ export function FiltersPanel() {
               label="Merchant or description"
               type="search"
               value={draft.search || ""}
-              placeholder="Coffee"
+              placeholder="Search merchants"
               onChange={(v) => change("search", v)}
             />
             <SelectField
@@ -131,7 +172,7 @@ export function FiltersPanel() {
             />
             <TextField
               id="f-min"
-              label="Minimum amount ($)"
+              label="Min amount ($)"
               type="number"
               step=".01"
               value={draft.min_amount || ""}
@@ -139,17 +180,18 @@ export function FiltersPanel() {
             />
             <TextField
               id="f-max"
-              label="Maximum amount ($)"
+              label="Max amount ($)"
               type="number"
               step=".01"
               value={draft.max_amount || ""}
               onChange={(v) => change("max_amount", v)}
             />
           </div>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="transaction-filter-footer">
             <div className="flex flex-wrap items-center gap-3">
               <Button>Apply filters</Button>
               <Button type="button" variant="outline" onClick={() => apply({})}>
+                <RotateCcw className="size-3.5" />
                 Reset
               </Button>
               <Label className="min-h-11">
@@ -161,37 +203,13 @@ export function FiltersPanel() {
                 Needs review
               </Label>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setAsk(!ask)}
-            >
-              Ask AI to filter
-            </Button>
+            <span className="transaction-filter-count">
+              {count === undefined
+                ? "Loading transactions…"
+                : `${shown || 0} of ${count} shown`}
+            </span>
           </div>
         </form>
-        {ask && (
-          <form
-            className="mt-4 space-y-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              mutation.mutate();
-            }}
-          >
-            <TextField
-              id="question"
-              label="Describe the transactions you want to see"
-              value={question}
-              onChange={setQuestion}
-              required
-              placeholder="Dining purchases over $50 this year"
-            />
-            <Button disabled={mutation.isPending}>
-              {mutation.isPending ? "Working…" : "Preview filters"}
-            </Button>
-            <ErrorMessage error={mutation.error} />
-          </form>
-        )}
         <Modal
           open={!!plan}
           onOpenChange={(v) => {

@@ -1,3 +1,5 @@
+import { Sparkles, ListChecks, Download } from "lucide-react";
+import { FiltersPanel } from "@/components/filters";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -99,134 +101,144 @@ export function Transactions() {
   }
   return (
     <section id="transactions">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2>Transaction ledger</h2>
-        <div className="ledger-actions">
-          <Button
-            variant="outline"
-            id="bulk-edit"
-            onClick={() =>
-              openEdit(
-                (query.data?.rows || []).filter((r) => selected.has(r.id)),
-              )
-            }
-          >
-            Edit selected{selected.size ? ` (${selected.size})` : ""}
-          </Button>
-          <Button
-            variant="outline"
-            disabled={categorize.isPending}
-            onClick={() => categorize.mutate()}
-          >
-            Categorize unknowns
-          </Button>
-          <Button
-            variant="outline"
-            disabled={applyRules.isPending}
-            onClick={() => applyRules.mutate()}
-          >
-            {applyRules.isPending ? "Applying…" : "Apply built-in rules"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              window.location.href = "/api/export?" + queryString(filters);
-            }}
-          >
-            Export CSV
-          </Button>
-        </div>
-      </div>
-      <p className="my-4 text-sm text-muted-foreground">
-        Expenses are positive and credits negative. Payments and transfers do
-        not count toward spending.
-      </p>
-      <ErrorMessage error={categorize.error} />
-      <ErrorMessage error={applyRules.error} />
-      <div id="ledger">
-        {query.isPending ? (
-          <Loading />
-        ) : query.error ? (
-          <ErrorMessage error={query.error} />
-        ) : query.data.count ? (
-          <>
-            <div className="flex items-center justify-between gap-2 py-3 text-xs text-muted-foreground md:hidden">
-              <span>{selected.size} selected</span>
-              <Button
-                variant="ghost"
-                onClick={() =>
-                  setSelected(
-                    new Set(
-                      query.data.rows.every((r) => selected.has(r.id))
-                        ? []
-                        : query.data.rows.map((r) => r.id),
-                    ),
-                  )
-                }
-              >
-                {query.data.rows.every((r) => selected.has(r.id))
-                  ? "Clear selection"
-                  : "Select all on this page"}
-              </Button>
-            </div>
-            <TransactionTable
-              rows={query.data.rows}
-              selected={selected}
-              onSelectAll={(checked) =>
-                setSelected(
-                  new Set(checked ? query.data.rows.map((r) => r.id) : []),
+      <header className="transactions-heading">
+        <h1>Transactions</h1>
+        <p>Find, categorize, and review every transaction.</p>
+      </header>
+      <FiltersPanel count={query.data?.count} shown={query.data?.rows.length} />
+      <article className="transaction-ledger-card">
+        <header className="transaction-ledger-heading">
+          <div>
+            <h2>Transaction ledger</h2>
+            <p>
+              Expenses are positive and credits negative. Payments and transfers
+              do not count toward spending.
+            </p>
+          </div>
+          <div className="ledger-actions">
+            <Button
+              variant="outline"
+              id="bulk-edit"
+              onClick={() =>
+                openEdit(
+                  (query.data?.rows || []).filter((r) => selected.has(r.id)),
                 )
               }
-              onSelect={(id, checked) =>
-                setSelected((old) => {
-                  const next = new Set(old);
-                  if (checked) next.add(id);
-                  else next.delete(id);
-                  return next;
-                })
-              }
-              onEdit={(r) => openEdit([r])}
-            />
-            <div className="my-6 flex flex-wrap items-center gap-3">
-              <Button
-                variant="outline"
-                disabled={page === 1}
-                onClick={() => {
-                  setPage(page - 1);
-                  setSelected(new Set());
-                }}
-              >
-                Previous
-              </Button>
-              <span>
-                Page {page} of {query.data.pages} · {query.data.count} rows
-              </span>
-              <Button
-                variant="outline"
-                disabled={page >= query.data.pages}
-                onClick={() => {
-                  setPage(page + 1);
-                  setSelected(new Set());
-                }}
-              >
-                Next
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() =>
-                  setSelected(new Set(query.data.rows.map((r) => r.id)))
+            >
+              Edit selected{selected.size ? ` (${selected.size})` : ""}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={categorize.isPending}
+              onClick={() => categorize.mutate()}
+            >
+              <Sparkles className="size-3.5" /> Categorize unknowns
+            </Button>
+            <Button
+              variant="outline"
+              disabled={applyRules.isPending}
+              onClick={() => applyRules.mutate()}
+            >
+              <ListChecks className="size-3.5" />
+              {applyRules.isPending ? "Applying…" : "Apply built-in rules"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                window.location.href = "/api/export?" + queryString(filters);
+              }}
+            >
+              <Download className="size-3.5" /> Export CSV
+            </Button>
+          </div>
+        </header>
+        <ErrorMessage error={categorize.error} />
+        <ErrorMessage error={applyRules.error} />
+        <div id="ledger">
+          {query.isPending ? (
+            <Loading />
+          ) : query.error ? (
+            <ErrorMessage error={query.error} />
+          ) : query.data.count ? (
+            <>
+              <div className="flex items-center justify-between gap-2 py-3 text-xs text-muted-foreground md:hidden">
+                <span>{selected.size} selected</span>
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    setSelected(
+                      new Set(
+                        query.data.rows.every((r) => selected.has(r.id))
+                          ? []
+                          : query.data.rows.map((r) => r.id),
+                      ),
+                    )
+                  }
+                >
+                  {query.data.rows.every((r) => selected.has(r.id))
+                    ? "Clear selection"
+                    : "Select all on this page"}
+                </Button>
+              </div>
+              <TransactionTable
+                rows={query.data.rows}
+                selected={selected}
+                onSelectAll={(checked) =>
+                  setSelected(
+                    new Set(checked ? query.data.rows.map((r) => r.id) : []),
+                  )
                 }
-              >
-                Select this page
-              </Button>
-            </div>
-          </>
-        ) : (
-          <p className="py-8 text-muted-foreground">
-            No transactions match your filters.
-          </p>
-        )}
-      </div>
+                onSelect={(id, checked) =>
+                  setSelected((old) => {
+                    const next = new Set(old);
+                    if (checked) next.add(id);
+                    else next.delete(id);
+                    return next;
+                  })
+                }
+                onEdit={(r) => openEdit([r])}
+              />
+              <div className="transaction-pagination">
+                <Button
+                  variant="outline"
+                  disabled={page === 1}
+                  onClick={() => {
+                    setPage(page - 1);
+                    setSelected(new Set());
+                  }}
+                >
+                  Previous
+                </Button>
+                <span>
+                  Page {page} of {query.data.pages} · {query.data.count} rows
+                </span>
+                <Button
+                  variant="outline"
+                  disabled={page >= query.data.pages}
+                  onClick={() => {
+                    setPage(page + 1);
+                    setSelected(new Set());
+                  }}
+                >
+                  Next
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    setSelected(new Set(query.data.rows.map((r) => r.id)))
+                  }
+                >
+                  Select this page
+                </Button>
+              </div>
+            </>
+          ) : (
+            <p className="py-8 text-muted-foreground">
+              No transactions match your filters.
+            </p>
+          )}
+        </div>
+      </article>
       <Modal
         open={!!editing.length}
         onOpenChange={(v) => {

@@ -2191,3 +2191,262 @@
   min-height: 0;
   flex-shrink: 0;
 }
+
+.transactions-heading {
+  margin-bottom: 24px;
+}
+.transactions-heading h1 {
+  font-size: 28px;
+}
+.transactions-heading p {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+#transactions .filter-panel {
+  padding: 0;
+  overflow: clip;
+}
+.transaction-ai-filter {
+  padding: 16px 20px;
+  background: var(--accent);
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.transaction-ai-title {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--primary);
+}
+.transaction-ai-input {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+.transaction-ai-input > div {
+  flex: 1;
+  min-width: 0;
+}
+.transaction-ai-input label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  overflow: hidden;
+}
+#transactions #filter-form > .transaction-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  padding: 20px;
+  gap: 16px;
+}
+.transaction-filter-grid > div {
+  grid-column: span 2;
+}
+.transaction-filter-grid > div:has(#f-search) {
+  grid-column: span 4;
+  order: 1;
+}
+.transaction-filter-grid > div:has(#f-start) {
+  order: 2;
+}
+.transaction-filter-grid > div:has(#f-end) {
+  order: 3;
+}
+.transaction-filter-grid > div:has(#f-account) {
+  order: 4;
+}
+.transaction-filter-grid > div:has(#f-category) {
+  order: 5;
+}
+.transaction-filter-grid > div:has(#f-kind) {
+  order: 6;
+}
+.transaction-filter-grid > div:has(#f-min) {
+  grid-column: span 1;
+  order: 7;
+}
+.transaction-filter-grid > div:has(#f-max) {
+  grid-column: span 1;
+  order: 8;
+}
+.transaction-filter-grid label {
+  font-size: 12px;
+}
+.transaction-filter-footer {
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--muted);
+  border-top: 1px solid var(--border);
+}
+.transaction-filter-count {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+}
+.transaction-ledger-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  min-width: 0;
+  overflow: clip;
+}
+.transaction-ledger-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.transaction-ledger-heading h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.transaction-ledger-heading p {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin-top: 6px;
+  max-width: 55ch;
+}
+.transaction-ledger-heading .ledger-actions {
+  justify-content: flex-end;
+}
+.transaction-ledger-heading .ledger-actions button {
+  font-size: 12px;
+}
+#transactions #ledger {
+  margin: 0;
+  border: 0;
+  padding: 0;
+  border-radius: 0;
+}
+#transactions .ledger-table thead {
+  background: var(--card);
+  font-size: 11px;
+}
+#transactions .ledger-table th {
+  font-weight: 400;
+  padding: 10px 16px;
+}
+#transactions .ledger-table td {
+  padding: 12px 16px;
+  font-size: 12px;
+}
+#transactions .ledger-table th:first-child {
+  width: 110px;
+}
+#transactions .ledger-table td[data-label="Merchant"] button {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--foreground);
+  white-space: normal;
+}
+#transactions .ledger-table td[data-label="Merchant"] > span {
+  font-size: 10px;
+  margin-top: 2px;
+}
+#transactions .ledger-table td[data-label="Account"] {
+  color: var(--muted-foreground);
+}
+#transactions .ledger-table td[data-label="Date"] small {
+  font-size: 10px;
+}
+.transaction-category-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+.transaction-kind {
+  text-transform: capitalize;
+  font-size: 10px;
+  margin-top: 3px;
+}
+.transaction-credit {
+  color: var(--change-lower);
+}
+#transactions .ledger-table [data-slot="badge"] {
+  color: var(--primary);
+  background: var(--accent);
+  font-size: 10px;
+  border: 0;
+}
+.transaction-pagination {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+@media (max-width: 64rem) {
+  .transaction-ledger-heading {
+    flex-direction: column;
+  }
+  .transaction-ledger-heading .ledger-actions {
+    justify-content: flex-start;
+  }
+  #transactions #filter-form > .transaction-filter-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .transaction-filter-grid > div:has(#f-search) {
+    grid-column: span 4;
+  }
+  .transaction-filter-grid > div:has(#f-min),
+  .transaction-filter-grid > div:has(#f-max) {
+    grid-column: span 2;
+  }
+}
+@media (max-width: 45rem) {
+  #transactions .filter-panel > button {
+    margin: 0;
+    padding: 16px;
+  }
+  .transaction-ai-filter,
+  #transactions #filter-form > .transaction-filter-grid {
+    padding: 16px;
+  }
+  .transaction-ai-input {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .transaction-filter-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 16px;
+  }
+  .transaction-ledger-heading {
+    padding: 16px;
+  }
+  #transactions .ledger-table td {
+    padding: 5px 0;
+  }
+  #transactions .ledger-table td[data-label="Merchant"] {
+    padding-top: 8px;
+  }
+  #transactions .ledger-table tr {
+    margin: 12px;
+  }
+  #transactions .ledger-table td[data-label="Amount"] {
+    font-weight: 600;
+  }
+  .transaction-pagination {
+    padding: 16px;
+  }
+}
+
+.transaction-ai-input input {
+  background: var(--card);
+}

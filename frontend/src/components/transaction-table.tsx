@@ -84,7 +84,23 @@ export function TransactionTable({
                     : { "data-row": id })}
                 />
               </TableCell>
-              <TableCell data-label="Date">{r.date}</TableCell>
+              <TableCell data-label="Date">
+                {preview ? (
+                  r.date
+                ) : (
+                  <time dateTime={r.date}>
+                    <span>
+                      {new Date(r.date + "T12:00:00").toLocaleDateString(
+                        "en-US",
+                        { month: "short", day: "numeric" },
+                      )}
+                    </span>
+                    <small className="block text-muted-foreground">
+                      {r.date.slice(0, 4)}
+                    </small>
+                  </time>
+                )}
+              </TableCell>
               <TableCell data-label="Merchant">
                 {onEdit ? (
                   <Button
@@ -107,15 +123,20 @@ export function TransactionTable({
               </TableCell>
               <TableCell data-label="Account">{account || r.account}</TableCell>
               <TableCell data-label="Category">
-                {r.category}
-                <span className="block text-muted-foreground">{r.kind}</span>
+                <span className="transaction-category-pill">{r.category}</span>
+                <span className="block text-muted-foreground transaction-kind">
+                  {r.kind}
+                  {["payment", "transfer", "income"].includes(r.kind)
+                    ? " · not spending"
+                    : ""}
+                </span>
                 {r.needs_review && (
                   <Badge variant="secondary">Needs review</Badge>
                 )}
               </TableCell>
               <TableCell
                 data-label="Amount"
-                className="text-right tabular-nums"
+                className={`text-right tabular-nums ${r.amount_cents < 0 ? "transaction-credit" : ""}`}
               >
                 {money(r.amount_cents)}
               </TableCell>

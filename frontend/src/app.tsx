@@ -20,7 +20,7 @@ import {
   Sparkles,
   ChevronRight,
 } from "lucide-react";
-import { FiltersPanel } from "@/components/filters";
+
 function Login() {
   const client = useQueryClient(),
     [username, setUsername] = useState("admin"),
@@ -303,14 +303,17 @@ function Shell() {
           </Button>
         </div>
         <main className="workspace-main">
-          {path !== "/" && path !== "/imports" && path !== "/settings" && (
-            <header className="page-heading">
-              <h1>{page.title}</h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {page.description}
-              </p>
-            </header>
-          )}
+          {path !== "/" &&
+            path !== "/imports" &&
+            path !== "/settings" &&
+            path !== "/transactions" && (
+              <header className="page-heading">
+                <h1>{page.title}</h1>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {page.description}
+                </p>
+              </header>
+            )}
           {notice && (
             <div
               id="notice"
@@ -329,7 +332,6 @@ function Shell() {
               </Button>
             </div>
           )}
-          {path === "/transactions" && <FiltersPanel />}
           <Outlet />
           <footer className="mt-10 border-t pt-4 text-sm text-muted-foreground">
             Money Penny · Reports reflect imported transactions and your active

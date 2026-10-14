@@ -19,3 +19,5 @@ Modern minimal spending workbench. All app routes share one visual system.
 - Expanded spending details: net spending strip with purchase/refund/fee/interest breakdown; category donut with matching legend and signed amounts; merchant shares, top-six/all-twelve disclosure and aggregate footer. On mobile, cards stack and merchant bars sit below each merchant.
 
 - AI & rules: selectable provider cards including rules-only mode, local model settings and read-only server status, privacy callout, merchant rule rows and live job status/progress cards. Configuration and lower cards stack on mobile; reset stays separate below.
+
+- Transactions: unified AI prompt and manual filter card; count and review controls in a muted footer; compact ledger header/actions, split calendar dates, category pills, review badges and signed credit colors. Mobile retains collapsible filters and transaction cards. Manual and AI filter changes are explicitly approved before application.
