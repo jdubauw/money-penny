@@ -135,17 +135,21 @@ be undone from the app; separately created backups are not deleted.
 
 ## Backup and restore
 
-Back up **both** PostgreSQL and the statement volume. Keep credentials and backups private. For a consistent snapshot, stop uploads and processing during the backup. From a checkout with the same Compose project and environment:
+For nightly Kopia backups, use the host preparation script in
+[`scripts/prepare_backup.py`](scripts/prepare_backup.py). It prepares a single
+folder at `/srv/money-penny/backup` containing a validated PostgreSQL dump, all
+statement files, and a manifest. Optional configuration capture includes the
+Coolify deployment's `.env` and Compose files.
 
-```sh
-mkdir -p backups
-docker compose stop worker web
-docker compose exec -T db pg_dump -U ledger -d ledger -Fc > backups/ledger.dump
-docker compose run --rm --no-deps --entrypoint tar web -C /data -czf - . > backups/statements.tar.gz
-docker compose up -d web worker
-```
+The script briefly stops web and worker for a matching database/files capture,
+restarts them, then publishes the completed bundle. Existing named volumes stay
+in place. A Kopia essential before-snapshot action runs the script, so failed
+preparation fails the backup rather than silently capturing stale data.
 
-Coolify prefixes Compose resources with its own project identity: use its database backup tooling and the actual matching volume/container names when running commands on that server. Test a restore into an isolated deployment. Restore the dump with `pg_restore` into its empty database, restore the archive to `/data` with ownership UID 10001, and start web and worker with the same configuration. Do not overwrite a live database while restoring.
+See [Kopia setup and restore instructions](docs/kopia-backup.md) for container
+identification, installation, nightly scheduling, credentials and restore testing.
+This requires installation on your server; deploying the app alone does not
+install or configure Kopia.
 
 This first release creates its initial tables automatically. Back up before upgrades; future schema changes require explicit migrations.
 
