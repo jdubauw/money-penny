@@ -421,3 +421,55 @@ def test_worker_prioritizes_imports_and_yields_between_ai_requests(client, monke
         assert completed.status == "completed"
         assert completed.result["processed"] == completed.result["total"] == 2
         assert completed.result["categorized"] == 2
+
+
+def test_commit_rechecks_overlap_and_duplicate_import_removal(client):
+    first = upload(client)
+    assert commit(client, first).status_code == 200
+    second = upload(client, data=CSV + b"\n")
+    assert run_once()
+    # A client can select stale/flagged rows, but the server refuses them.
+    rejected = client.post(f"/api/imports/{second}/commit", json={"selected_indices": [0, 1, 2, 3]})
+    assert rejected.status_code == 409
+    with Session() as session:
+        assert session.query(Transaction).filter_by(import_id=second).count() == 0
+        # Reproduce duplicate data from the previous version.
+        for row in session.query(Transaction).filter_by(import_id=first).all():
+            values = {column.name: getattr(row, column.name) for column in Transaction.__table__.columns
+                      if column.name not in ("id", "import_id")}
+            session.add(Transaction(import_id=second, **values))
+        session.get(Import, second).status = "committed"
+        session.commit()
+    summary = client.get(f"/api/imports/{second}/duplicates").json()
+    assert summary["can_remove"] and summary["rows"] == summary["matched_rows"] == 4
+    assert summary["spending_cents"] == 10010
+    assert client.delete(f"/api/imports/{second}/duplicates").status_code == 422
+    removed = client.request("DELETE", f"/api/imports/{second}/duplicates", json={"confirm_import_id": second})
+    assert removed.status_code == 200
+    with Session() as session:
+        assert session.query(Transaction).filter_by(import_id=first).count() == 4
+        assert session.query(Transaction).filter_by(import_id=second).count() == 0
+        assert session.get(Import, second).status == "duplicates_removed"
+    assert client.get(f"/api/imports/{second}/file").status_code == 200
+    # The retained import now has no matching copy and cannot be removed.
+    summary = client.get(f"/api/imports/{first}/duplicates").json()
+    assert not summary["can_remove"]
+    assert client.request("DELETE", f"/api/imports/{first}/duplicates", json={"confirm_import_id": first}).status_code == 409
+
+
+def test_duplicate_cleanup_preserves_identical_purchase_multiplicity(client):
+    first = upload(client)
+    assert commit(client, first).status_code == 200
+    second = upload(client, data=CSV+b"\n")
+    assert run_once()
+    with Session() as session:
+        original = session.query(Transaction).filter_by(import_id=first).first()
+        values = {column.name: getattr(original, column.name) for column in Transaction.__table__.columns
+                  if column.name not in ("id", "import_id", "row_index")}
+        session.add(Transaction(import_id=second, row_index=0, **values))
+        session.add(Transaction(import_id=second, row_index=1, **values))
+        session.get(Import, second).status = "committed"
+        session.commit()
+    summary = client.get(f"/api/imports/{second}/duplicates").json()
+    assert summary["matched_rows"] == 1 and summary["rows"] == 2
+    assert not summary["can_remove"]

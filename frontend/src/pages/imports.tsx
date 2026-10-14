@@ -136,6 +136,37 @@ export function Imports() {
       client.removeQueries({ queryKey: ["history"] });
     },
   });
+  const [duplicateReview, setDuplicateReview] = useState<{
+    id: number;
+    account: string;
+    rows: number;
+    matched_rows: number;
+    can_remove: boolean;
+    spending_cents: number;
+  } | null>(null);
+  const checkDuplicates = useMutation({
+    mutationFn: (id: number) =>
+      api<NonNullable<typeof duplicateReview>>(`/api/imports/${id}/duplicates`),
+    onSuccess: (result) => {
+      removeDuplicates.reset();
+      setDuplicateReview(result);
+    },
+  });
+  const removeDuplicates = useMutation({
+    mutationFn: () =>
+      api(`/api/imports/${duplicateReview!.id}/duplicates`, {
+        method: "DELETE",
+        body: { confirm_import_id: duplicateReview!.id },
+      }),
+    onSuccess: async () => {
+      setDuplicateReview(null);
+      setNotice(
+        "Duplicate import transactions removed. Original statement retained.",
+      );
+      await invalidate();
+      client.removeQueries({ queryKey: ["history"] });
+    },
+  });
   function accountChanged(value: string) {
     setAccount(value);
     try {
@@ -485,6 +516,7 @@ export function Imports() {
           )}
         </header>
         <ErrorMessage error={open.error} />
+        <ErrorMessage error={checkDuplicates.error} />
         <div id="import-list">
           {imports.isPending ? (
             <Loading />
@@ -522,12 +554,14 @@ export function Imports() {
                       {item.filename}
                     </strong>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span>Import #{item.id}</span>
                       <span>{item.account}</span>
                       <span className={`import-status status-${item.status}`}>
                         <i aria-hidden="true" />
                         {(
                           {
                             committed: "Committed",
+                            duplicates_removed: "Duplicates removed",
                             preview: "Ready to review",
                             queued: "Queued",
                             processing: "Processing",
@@ -543,6 +577,16 @@ export function Imports() {
                     <ErrorMessage error={item.error} />
                   </div>
                   <div className="import-archive-actions">
+                    {item.status === "committed" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={checkDuplicates.isPending}
+                        onClick={() => checkDuplicates.mutate(item.id)}
+                      >
+                        Check duplicates
+                      </Button>
+                    )}
                     {item.status === "preview" && (
                       <Button
                         disabled={open.isPending}
@@ -567,6 +611,54 @@ export function Imports() {
           )}
         </div>
       </section>
+      <Modal
+        title="Review duplicate import"
+        open={!!duplicateReview}
+        id="duplicate-import-modal"
+        description="Remove an import only when every transaction has a matching copy."
+        onOpenChange={() => {
+          if (!removeDuplicates.isPending) setDuplicateReview(null);
+        }}
+      >
+        {duplicateReview && (
+          <div className="space-y-4">
+            <p>
+              Import #{duplicateReview.id} · {duplicateReview.account}
+            </p>
+            <p>
+              {duplicateReview.matched_rows} of {duplicateReview.rows}{" "}
+              transactions have matching copies in other imports for this
+              account.
+            </p>
+            {duplicateReview.can_remove ? (
+              <>
+                <p>
+                  Remove all {duplicateReview.rows} transactions from this
+                  import, totaling {money(duplicateReview.spending_cents)} in
+                  spending? Matching copies and the original statement file will
+                  remain. Categorization edits on removed rows will not carry
+                  over to the retained copies.
+                </p>
+                <Button
+                  variant="destructive"
+                  disabled={removeDuplicates.isPending}
+                  onClick={() => removeDuplicates.mutate()}
+                >
+                  {removeDuplicates.isPending
+                    ? "Removing…"
+                    : "Remove duplicate import transactions"}
+                </Button>
+              </>
+            ) : (
+              <p>
+                This import cannot be removed automatically because some
+                transactions have no matching copies. No data has been changed.
+              </p>
+            )}
+            <ErrorMessage error={removeDuplicates.error} />
+          </div>
+        )}
+      </Modal>
       <Modal
         open={!!preview}
         onOpenChange={(v) => {

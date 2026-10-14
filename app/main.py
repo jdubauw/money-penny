@@ -6,7 +6,7 @@ import json
 import os
 import secrets
 import time
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
@@ -23,7 +23,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.ai import config, plan_filters, public_config, request_json
 from app.database import Audit, DATA_DIR, Import, Job, Rule, Session, Setting, Transaction, data_lock, init_db
-from app.importer import CATEGORIES, KINDS, cents, flag_duplicates, make_row
+from app.importer import CATEGORIES, KINDS, cents, fingerprint, flag_duplicates, make_row
 
 STATIC = Path(os.environ.get("FRONTEND_DIST", Path(__file__).resolve().parents[1] / "frontend" / "dist"))
 if not STATIC.exists():
@@ -46,7 +46,7 @@ app = FastAPI(title="Spending Ledger", lifespan=lifespan, docs_url=None, redoc_u
 
 def db(request: Request):
     with Session() as session:
-        data_lock(session, exclusive=request.url.path == "/api/settings/reset")
+        data_lock(session, exclusive=request.url.path == "/api/settings/reset" or request.url.path.endswith("/commit") or (request.method == "DELETE" and request.url.path.endswith("/duplicates")))
         yield session
 
 
@@ -274,6 +274,12 @@ def commit(item_id: int, body: Commit, session=Depends(db)):
         raise HTTPException(422, "Select valid transaction rows, each only once.")
     if item.preview.get("warnings") and not body.acknowledge_warnings:
         raise HTTPException(422, "Review and acknowledge the reconciliation warnings first.")
+    existing = session.scalars(select(Transaction).where(Transaction.account == item.account)).all()
+    selected_rows = [dict(row) for row in rows]
+    flag_duplicates(selected_rows, [{"date": r.date.isoformat(), "description": r.description,
+                                    "amount_cents": r.amount_cents} for r in existing])
+    if any(selected_rows[i]["duplicate_candidate"] for i in selected):
+        raise HTTPException(409, "Selected rows already exist in this account. Close and reopen the preview to refresh duplicate checks, then leave duplicate rows unchecked.")
     rules = {r.vendor.casefold(): r for r in session.scalars(select(Rule))}
     for i in selected:
         row = dict(rows[i])
@@ -287,6 +293,56 @@ def commit(item_id: int, body: Commit, session=Depends(db)):
     item.preview = {**item.preview, "committed_rows": len(selected)}
     session.commit()
     return {"imported": len(selected)}
+
+
+def duplicate_import_summary(item, session):
+    rows = session.scalars(select(Transaction).where(Transaction.import_id == item.id)).all()
+    others = session.scalars(select(Transaction).where(Transaction.account == item.account,
+                                                      Transaction.import_id != item.id)).all()
+    def identity(row):
+        return fingerprint({"date": row.date.isoformat(), "description": row.description,
+                            "amount_cents": row.amount_cents}) + (row.kind,)
+    copies = Counter(identity(row) for row in others)
+    matched = 0
+    for row in rows:
+        key = identity(row)
+        if copies[key]:
+            matched += 1
+            copies[key] -= 1
+    return rows, {"id": item.id, "account": item.account, "rows": len(rows), "matched_rows": matched,
+                  "can_remove": bool(rows) and matched == len(rows),
+                  "spending_cents": sum(r.amount_cents for r in rows if r.kind in ("purchase", "refund", "fee", "interest"))}
+
+
+@app.get("/api/imports/{item_id}/duplicates", dependencies=[Depends(auth)])
+def check_duplicate_import(item_id: int, session=Depends(db)):
+    item = session.get(Import, item_id)
+    if not item or item.status != "committed":
+        raise HTTPException(409, "Only committed imports can be checked.")
+    return duplicate_import_summary(item, session)[1]
+
+
+class RemoveDuplicateImport(BaseModel):
+    confirm_import_id: int
+
+
+@app.delete("/api/imports/{item_id}/duplicates", dependencies=[Depends(auth)])
+def remove_duplicate_import(item_id: int, body: RemoveDuplicateImport, session=Depends(db)):
+    if body.confirm_import_id != item_id:
+        raise HTTPException(422, "Confirm the import being removed.")
+    item = session.get(Import, item_id)
+    if not item or item.status != "committed":
+        raise HTTPException(409, "Only committed imports can be removed.")
+    rows, summary = duplicate_import_summary(item, session)
+    if not summary["can_remove"]:
+        raise HTTPException(409, "This import contains transactions without matching copies. No data was removed.")
+    for row in rows:
+        session.add(Audit(transaction_id=row.id, before=transaction_dict(row),
+                          after={"deleted": True, "reason": "duplicate_import", "import_id": item_id}))
+        session.delete(row)
+    item.status = "duplicates_removed"
+    session.commit()
+    return summary
 
 
 def filtered(session, start=None, end=None, search=None, category=None, account=None, kind=None, review=False, min_amount=None, max_amount=None, vendor=None, spending=False):
