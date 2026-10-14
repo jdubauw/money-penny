@@ -23,7 +23,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.ai import config, plan_filters, public_config, request_json
 from app.database import Audit, DATA_DIR, Import, Job, Rule, Session, Setting, Transaction, data_lock, init_db
-from app.importer import CATEGORIES, KINDS, cents, flag_duplicates
+from app.importer import CATEGORIES, KINDS, cents, flag_duplicates, make_row
 
 STATIC = Path(os.environ.get("FRONTEND_DIST", Path(__file__).resolve().parents[1] / "frontend" / "dist"))
 if not STATIC.exists():
@@ -395,6 +395,29 @@ def period_spending(view: Literal["monthly", "quarterly", "yearly"] = "monthly",
         return spending_report(session.scalars(query).all(), view, period)
     except ValueError as exc:
         raise HTTPException(422, str(exc))
+
+
+@app.post("/api/transactions/apply-rules", dependencies=[Depends(auth)])
+def apply_builtin_rules(session=Depends(db)):
+    rows = session.scalars(select(Transaction).where(
+        Transaction.category == "Other",
+        Transaction.category_source.not_in(["manual", "merchant_rule"]),
+    ).order_by(Transaction.id).with_for_update()).all()
+    updated = 0
+    for row in rows:
+        suggestion = make_row(row.date, row.description, row.amount_cents, row.kind)
+        if suggestion["category"] == "Other":
+            continue
+        before = transaction_dict(row)
+        for field in ["category", "subcategory", "kind", "needs_review"]:
+            setattr(row, field, suggestion[field])
+        row.category_source = "builtin"
+        row.explanation = "Matched a built-in merchant or payment rule"
+        row.version += 1
+        session.add(Audit(transaction_id=row.id, before=before, after=transaction_dict(row)))
+        updated += 1
+    session.commit()
+    return {"updated": updated}
 
 
 class Edit(BaseModel):

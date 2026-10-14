@@ -43,6 +43,18 @@ export function Transactions() {
       await invalidate();
     },
   });
+  const applyRules = useMutation({
+    mutationFn: () =>
+      api<{ updated: number }>("/api/transactions/apply-rules", {
+        method: "POST",
+      }),
+    onSuccess: async (result) => {
+      setNotice(
+        `${result.updated} unknown transactions categorized using built-in rules.`,
+      );
+      await invalidate();
+    },
+  });
   const [category, setCategory] = useState("Other"),
     [subcategory, setSubcategory] = useState(""),
     [kind, setKind] = useState(""),
@@ -109,6 +121,13 @@ export function Transactions() {
           </Button>
           <Button
             variant="outline"
+            disabled={applyRules.isPending}
+            onClick={() => applyRules.mutate()}
+          >
+            {applyRules.isPending ? "Applying…" : "Apply built-in rules"}
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => {
               window.location.href = "/api/export?" + queryString(filters);
             }}
@@ -122,6 +141,7 @@ export function Transactions() {
         not count toward spending.
       </p>
       <ErrorMessage error={categorize.error} />
+      <ErrorMessage error={applyRules.error} />
       <div id="ledger">
         {query.isPending ? (
           <Loading />

@@ -14,7 +14,7 @@ from scripts.process_statements import (OPEN_CLOSE_RE, SUMMARY_PATTERNS, TX_RE,
 KINDS = ["purchase", "refund", "payment", "transfer", "income", "fee", "interest", "credit"]
 CATEGORIES = ["Food", "Travel", "Pets", "Kids & Family", "Home", "Personal Care", "Health",
               "Transportation", "Entertainment", "Business & Technology", "Bills & Utilities",
-              "Professional Services", "Gifts & Giving", "Taxes & Government", "Shopping", "Other"]
+              "Professional Services", "Gifts & Giving", "Taxes & Government", "Shopping", "Gas", "Payments", "Other"]
 
 
 def cents(value):
@@ -40,7 +40,7 @@ def cents(value):
 
 def transaction_kind(description, amount, account_kind):
     d = description.upper()
-    if any(term in d for term in ["PAYMENT THANK", "AUTOPAY", "CARD PAYMENT", "CREDIT CARD PAYMENT"]):
+    if any(term in d for term in ["PAYMENT THANK", "AUTOPAY", "CARD PAYMENT", "CREDIT CARD PAYMENT", "AUTOMATIC PAYMENT - THANK YOU", "AUTOMATIC PAYMENT THANK YOU"]):
         return "payment"
     if any(term in d for term in ["TRANSFER", "PAYMENT TO CHASE"]):
         return "transfer"
@@ -58,13 +58,23 @@ def transaction_kind(description, amount, account_kind):
 def make_row(tx_date, description, amount, kind):
     if not description.strip():
         raise ValueError("Transaction description is empty.")
-    category, subcategory = categorize(description, "Purchase")
-    # A processor prefix or a general-purpose retailer cannot establish purchase contents.
-    ambiguous = any(term in description.upper() for term in ["AMAZON", "AMZN", "WALMART", "WAL-MART", "TARGET", "SQ *"])
+    merchant_description = re.sub(r"^SQ\s*\*\s*", "", description.strip(), flags=re.I)
+    category, subcategory = categorize(merchant_description, "Purchase")
+    # General retailers are ambiguous; a processor prefix does not obscure a named merchant.
+    d = description.upper()
+    ambiguous = any(term in d for term in ["AMAZON", "AMZN", "WALMART", "WAL-MART", "TARGET"])
     if ambiguous:
         category, subcategory = "Other", "Uncategorized"
+    elif re.search(r"\bICE\s*CREAM\b", d):
+        category, subcategory = "Food", "Dining"
+    elif re.search(r"\bPHILLIPS\s*66\b", d):
+        category, subcategory = "Gas", "Fuel"
+    elif re.search(r"\bYOUTUBE\s*TV\b", d):
+        category, subcategory = "Entertainment", "TV & Streaming"
+    if kind == "credit" and amount < 0 and transaction_kind(description, amount, "credit") == "payment":
+        kind = "payment"
     if kind not in ["purchase", "refund", "fee", "interest"]:
-        category, subcategory = "Other", ""
+        category, subcategory = ("Payments", "Credit card payment") if kind == "payment" else ("Other", "")
     return {"date": tx_date.isoformat(), "description": description.strip(),
             "vendor": normalize_vendor(description), "amount_cents": amount, "kind": kind,
             "category": category, "subcategory": subcategory,

@@ -338,3 +338,39 @@ def test_reset_retry_finishes_failed_file_cleanup(client,monkeypatch):
     monkeypatch.setattr(shutil,'rmtree',real_remove)
     assert client.post('/api/settings/reset',json=body).status_code==200
     assert not list(archive.glob('reset-trash-*'))
+
+
+@pytest.mark.parametrize('description,amount,kind,category,expected_kind',[
+    ('SQ *COSMIC ICE CREAM CO. Houston TX',1389,'purchase','Food','purchase'),
+    ('PHILLIPS 66 - SKIPPERS HUNTSVILLE TX',9331,'purchase','Gas','purchase'),
+    ('AUTOMATIC PAYMENT - THANK YOU',-4000,'credit','Payments','payment'),
+    ('GOOGLE *YOUTUBETV g.co/helppay# CA',8984,'purchase','Entertainment','purchase'),
+    ('SQ *UNKNOWN STORE Houston TX',2000,'purchase','Other','purchase'),
+])
+def test_specific_merchant_rules(description,amount,kind,category,expected_kind):
+    from datetime import date
+    from app.importer import make_row
+    row=make_row(date(2026,9,24),description,amount,kind)
+    assert row['category']==category and row['kind']==expected_kind
+    assert row['amount_cents']==amount
+
+
+def test_apply_builtin_rules_updates_existing_unknowns_and_preserves_manual(client):
+    from app.database import Audit
+    from datetime import date
+    descriptions=['SQ *COSMIC ICE CREAM CO. Houston TX','PHILLIPS 66 - SKIPPERS HUNTSVILLE TX','AUTOMATIC PAYMENT - THANK YOU','GOOGLE *YOUTUBETV g.co/helppay# CA','SQ *UNKNOWN STORE']
+    with Session() as session:
+        for i,desc in enumerate(descriptions):
+            session.add(Transaction(import_id=1,row_index=i,account='Card',date=date(2026,9,1),description=desc,vendor=desc,amount_cents=-4000 if i==2 else 1000,kind='credit' if i==2 else 'purchase',category='Other',needs_review=True))
+        session.add(Transaction(import_id=1,row_index=5,account='Card',date=date(2026,9,1),description=descriptions[0],vendor='Cosmic',amount_cents=1000,kind='purchase',category='Other',category_source='manual'))
+        session.commit()
+    result=client.post('/api/transactions/apply-rules')
+    assert result.status_code==200 and result.json()['updated']==4
+    with Session() as session:
+        rows=session.query(Transaction).order_by(Transaction.row_index).all()
+        assert [r.category for r in rows]==['Food','Gas','Payments','Entertainment','Other','Other']
+        assert rows[2].kind=='payment' and rows[2].amount_cents==-4000
+        assert not rows[2].needs_review
+        assert rows[5].category_source=='manual'
+        assert session.query(Audit).count()==4
+    assert client.post('/api/transactions/apply-rules').json()['updated']==0
