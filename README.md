@@ -14,7 +14,7 @@ A private, single-user web application for uploading bank exports, reviewing tra
 - AI categorization of unknown spending merchants, and natural-language questions translated into proposed filters for your approval. SQL/database logic calculates totals.
 - Signed, expiring HTTP-only sessions, password-change session invalidation, login throttling, same-origin mutation checks, and server-side AI credentials.
 
-The frontend lives in `frontend/`: **React + TypeScript**, **Vite**, **Tailwind CSS v4**, **shadcn/ui** (Radix components), **TanStack Router**, and **TanStack Query**. Components, typed API calls, query caching, and mutations replace the original static DOM scripts. Routing uses URL hashes so refreshing a page needs no extra reverse-proxy routes.
+The frontend lives in `frontend/`: **React + TypeScript**, **Vite**, **Tailwind CSS v4**, **shadcn/ui** (Radix components), **TanStack Router**, **TanStack Query**, and **TanStack Charts**. Components, typed API calls, query caching, and mutations replace the original static DOM scripts. Routing uses URL hashes so refreshing a page needs no extra reverse-proxy routes.
 
 The Dockerfile uses a Node build stage to compile the frontend and copies only the resulting assets into the Python image. FastAPI serves those assets and the API from the same origin. No Node server, CDN, or third-party font service is needed in production. The existing Coolify Compose configuration still works unchanged.
 

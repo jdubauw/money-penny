@@ -271,7 +271,7 @@ export function Overview() {
                       r.average_period_count +
                       " prior imported period(s)."
                     : "No prior imported periods to compare."}{" "}
-                  Hatched bars have no imported transactions.
+                  Dashed period labels have no imported transactions.
                 </p>
                 <Button
                   variant="link"

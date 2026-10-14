@@ -1,3 +1,10 @@
+import { useMemo } from "react";
+import { barY, defineChart, ruleY } from "@tanstack/charts";
+import { pie, polar, radialArc } from "@tanstack/charts/polar";
+import { scaleBand } from "@tanstack/charts/scales/band";
+import { scaleLinear } from "@tanstack/charts/scales/linear";
+import { Chart } from "@tanstack/charts/react";
+import { tooltip } from "@tanstack/charts/tooltip";
 import { money } from "@/lib/api";
 import type { SpendingCategory, SpendingPeriod } from "@/lib/types";
 
@@ -26,12 +33,30 @@ export function categoryColor(name: string) {
   );
   return "report-color-" + (categorySlots[name] ?? hash % 16);
 }
-function activate(event: React.KeyboardEvent, action: () => void) {
-  if (event.key === "Enter" || event.key === " ") {
-    event.preventDefault();
-    action();
-  }
-}
+const palette = [
+  "--chart-pink",
+  "--chart-green",
+  "--chart-teal",
+  "--chart-purple",
+  "--chart-blue",
+  "--chart-gold",
+  "--chart-navy",
+  "--chart-plum",
+  "--chart-cyan",
+  "--chart-orange",
+  "--chart-olive",
+  "--chart-violet",
+  "--chart-brown",
+  "--chart-slate",
+  "--chart-red",
+  "--chart-gray",
+];
+const chartTheme = {
+  foreground: "var(--foreground)",
+  muted: "var(--muted-foreground)",
+  grid: "var(--border)",
+  background: "var(--card)",
+};
 export function SpendingBars({
   series,
   average,
@@ -41,128 +66,119 @@ export function SpendingBars({
   average: number | null;
   onSelect: (key: string) => void;
 }) {
-  const high = Math.max(100, ...series.map((p) => p.spend_cents), average ?? 0);
-  const low = Math.min(0, ...series.map((p) => p.spend_cents), average ?? 0);
-  const step = Math.pow(10, Math.floor(Math.log10(high - low))) / 2;
-  const maximum = Math.ceil(high / step) * step,
-    minimum = Math.floor(low / step) * step;
-  const top = 20,
-    bottom = 232,
-    left = 10,
-    right = 375;
-  const y = (value: number) =>
-    bottom - ((value - minimum) / (maximum - minimum)) * (bottom - top);
-  const spacing = (right - left) / series.length;
-  return (
-    <svg
-      viewBox="0 0 450 300"
-      className="w-full report-bars"
-      role="group"
-      aria-label="Spending history. Select a period to update the report."
-    >
-      <defs>
-        <pattern
-          id="no-imports"
-          width="6"
-          height="6"
-          patternUnits="userSpaceOnUse"
-        >
-          <path d="M0 6L6 0" className="missing-stroke" />
-        </pattern>
-      </defs>
-      {[0, 1, 2, 3, 4].map((i) => {
-        const value = minimum + ((maximum - minimum) * i) / 4;
-        return (
-          <g key={i}>
-            <line
-              x1={left}
-              x2={right}
-              y1={y(value)}
-              y2={y(value)}
-              className="chart-grid"
-            />
-            <text x={right + 10} y={y(value) + 4} className="chart-label">
-              {Math.abs(value) >= 100000
-                ? (value / 100000).toFixed(1).replace(".0", "") + "k"
-                : (value / 100).toLocaleString("en-US", {
-                    maximumFractionDigits: 2,
-                  })}
-            </text>
-          </g>
-        );
-      })}
-      {average !== null && (
-        <line
-          x1={left}
-          x2={right}
-          y1={y(average)}
-          y2={y(average)}
-          className="chart-average"
-        />
-      )}
-      {series.map((p, i) => {
-        const x = left + spacing * i + spacing * 0.15,
-          zero = y(0),
-          value = y(p.spend_cents),
-          label = p.label.replace(/ (\d{4})$/, "");
-        return (
-          <g
-            key={p.key}
-            role="button"
-            tabIndex={0}
-            aria-label={
-              p.label +
-              ": " +
-              (p.has_data ? money(p.spend_cents) : "no imported transactions")
-            }
-            onClick={() => onSelect(p.key)}
-            onKeyDown={(e) => activate(e, () => onSelect(p.key))}
-            data-series-period={p.key}
-            className="chart-period cursor-pointer"
-          >
-            <title>
-              {p.label +
-                " · " +
-                (p.has_data
-                  ? money(p.spend_cents)
-                  : "No imported transactions")}
-            </title>
-            <rect
-              x={x}
-              width={spacing * 0.7}
-              y={p.has_data ? Math.min(zero, value) : zero - 12}
-              height={p.has_data ? Math.max(2, Math.abs(value - zero)) : 12}
-              className={
-                p.has_data
-                  ? p.is_selected
-                    ? "chart-bar-selected"
-                    : "chart-bar"
-                  : "chart-missing"
-              }
-            />
-            <text
-              x={x + spacing * 0.35}
-              y={bottom + 25}
-              textAnchor="middle"
-              className={
-                "chart-label " + (p.is_selected ? "selected-label" : "")
-              }
-            >
-              {/^\d{4}-\d{2}$/.test(p.key) ? label.slice(0, 3) : label}
-            </text>
-            <text
-              x={x + spacing * 0.35}
-              y={bottom + 44}
-              textAnchor="middle"
-              className="chart-label"
-            >
-              {/^\d{4}$/.test(p.label) ? "" : p.label.match(/\d{4}$/)?.[0]}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+  const definition = useMemo(
+    () =>
+      defineChart({
+        marks: [
+          barY(series, {
+            id: "spending",
+            key: "key",
+            x: "key",
+            y: (row) => (row.has_data ? row.spend_cents : null),
+            fill: (row) =>
+              row.is_selected
+                ? "var(--report-blue-selected)"
+                : "var(--report-blue)",
+            radius: 3,
+          }),
+          ...(average === null
+            ? []
+            : [
+                ruleY([average], {
+                  stroke: "var(--muted-foreground)",
+                  strokeDasharray: "4 3",
+                }),
+              ]),
+        ],
+        scales: {
+          x: {
+            scale: () =>
+              scaleBand()
+                .domain(series.map((row) => row.key))
+                .padding(0.25),
+            axis: false,
+          },
+          y: {
+            scale: () =>
+              scaleLinear().domain([
+                Math.min(
+                  0,
+                  ...series
+                    .filter((row) => row.has_data)
+                    .map((row) => row.spend_cents),
+                  average ?? 0,
+                ),
+                Math.max(
+                  100,
+                  ...series
+                    .filter((row) => row.has_data)
+                    .map((row) => row.spend_cents),
+                  average ?? 0,
+                ),
+              ]),
+            nice: true,
+            grid: true,
+            axis: {
+              ticks: { count: 4, format: (value) => money(Number(value)) },
+            },
+          },
+        },
+        theme: chartTheme,
+        tooltip: {
+          use: tooltip,
+          format: (point) =>
+            `${point.datum.label}: ${money(point.datum.spend_cents)}`,
+        },
+      }),
+    [series, average],
   );
+  return (
+    <div className="report-bars">
+      <Chart
+        definition={definition}
+        height={240}
+        ariaLabel="Spending history"
+        ariaDescription="Use arrow keys to explore spending and Enter to select a period. Missing imports are listed below."
+        onSelect={(point) => {
+          if (point) onSelect(point.datum.key);
+        }}
+      />
+      <div className="chart-period-list" aria-label="Select report period">
+        {series.map((row) => (
+          <button
+            key={row.key}
+            type="button"
+            data-series-period={row.key}
+            className={
+              row.has_data
+                ? "chart-period-label"
+                : "chart-period-label chart-period-missing"
+            }
+            aria-pressed={row.is_selected}
+            aria-label={`${row.label}: ${row.has_data ? money(row.spend_cents) : "no imported transactions"}`}
+            onClick={() => onSelect(row.key)}
+          >
+            {/^\d{4}-\d{2}$/.test(row.key)
+              ? row.label.slice(0, 3)
+              : row.label.replace(/ \d{4}$/, "")}
+            {!/^\d{4}$/.test(row.key) && (
+              <span className="block text-[10px] text-muted-foreground">
+                {row.label.match(/\d{4}$/)?.[0]}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+function datumCategoryName(datum: unknown): string | undefined {
+  return datum &&
+    typeof datum === "object" &&
+    "name" in datum &&
+    typeof datum.name === "string"
+    ? datum.name
+    : undefined;
 }
 export function CategoryDonut({
   categories,
@@ -175,68 +191,62 @@ export function CategoryDonut({
   positiveOnly: boolean;
   onSelect: (name: string) => void;
 }) {
-  const radius = 88,
-    circumference = 2 * Math.PI * radius;
-  let offset = 0;
-  return (
-    <svg
-      viewBox="0 0 260 260"
-      className="report-donut w-full"
-      role="group"
-      aria-label="Category spending distribution. Select a category to see transactions."
-    >
-      <circle
-        cx="130"
-        cy="130"
-        r={radius}
-        className="donut-track"
-        fill="none"
-        strokeWidth="32"
-      />
-      {categories
-        .filter((c) => c.amount_cents > 0)
-        .map((c) => {
-          const size = (c.amount_cents / total) * circumference,
-            start = offset;
-          offset += size;
-          return (
-            <circle
-              key={c.name}
-              cx="130"
-              cy="130"
-              r={radius}
-              fill="none"
-              strokeWidth="32"
-              strokeDasharray={Math.max(0, size - 1.5) + " " + circumference}
-              strokeDashoffset={-start}
-              transform="rotate(-90 130 130)"
-              role="button"
-              tabIndex={0}
-              onClick={() => onSelect(c.name)}
-              onKeyDown={(e) => activate(e, () => onSelect(c.name))}
-              aria-label={c.name + ": " + money(c.amount_cents)}
-              className={
-                categoryColor(c.name) + " donut-segment cursor-pointer"
-              }
-              data-donut-category={c.name}
-            >
-              <title>
-                {c.name +
-                  ": " +
-                  money(c.amount_cents) +
-                  " (" +
-                  c.percent +
-                  "%)"}
-              </title>
-            </circle>
+  const definition = useMemo(() => {
+    const slices = pie(
+      categories.filter((row) => row.amount_cents > 0),
+      { value: "amount_cents", gapAngle: 0.015 },
+    );
+    return defineChart({
+      marks: [
+        polar({
+          inset: 8,
+          marks: [
+            radialArc(slices, {
+              id: "categories",
+              key: "name",
+              innerRadius: ({ radius }) => radius * 0.7,
+              fill: (row) =>
+                `var(${palette[Number(categoryColor(row.name).replace("report-color-", ""))]})`,
+            }),
+          ],
+          scales: { angle: null, radius: null },
+        }),
+      ],
+      scales: { x: null, y: null },
+      guides: false,
+      margin: 0,
+      theme: chartTheme,
+      tooltip: {
+        use: tooltip,
+        format: (point) => {
+          const row = categories.find(
+            (category) => category.name === datumCategoryName(point.datum),
           );
-        })}
-      <text x="130" y="123" textAnchor="middle" className="donut-label">
-        {positiveOnly ? "Positive balances" : "Total"}
-      </text>
-      <text x="130" y="148" textAnchor="middle" className="donut-total">
-        {money(total)}
-      </text>
-    </svg>
+          return row
+            ? `${row.name}: ${money(row.amount_cents)} (${((row.amount_cents / total) * 100).toFixed(1)}%)`
+            : "";
+        },
+      },
+    });
+  }, [categories, total]);
+  return (
+    <div className="report-donut relative">
+      <Chart
+        definition={definition}
+        aspectRatio={1}
+        ariaLabel="Category spending distribution"
+        ariaDescription="Use arrow keys to explore categories and Enter to see transactions."
+        onSelect={(point) => {
+          const category = categories.find(
+            (row) => row.name === datumCategoryName(point?.datum),
+          );
+          if (category) onSelect(category.name);
+        }}
+      />
+      <div className="donut-center" aria-hidden="true">
+        <span>{positiveOnly ? "Positive balances" : "Total"}</span>
+        <strong>{money(total)}</strong>
+      </div>
+    </div>
   );
 }
