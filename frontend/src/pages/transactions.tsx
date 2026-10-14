@@ -13,6 +13,7 @@ import {
   SelectField,
   TextField,
 } from "@/components/shared";
+import { CategoryInput } from "@/components/category-input";
 import { TransactionTable } from "@/components/transaction-table";
 export function Transactions() {
   const { bootstrap, filters, invalidate, setNotice } = useLedger(),
@@ -275,13 +276,10 @@ export function Transactions() {
           }}
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
-              id="edit-category"
-              label="Category"
+            <CategoryInput
               value={category}
               onChange={setCategory}
-              required
-              maxLength={100}
+              categories={bootstrap.categories}
             />
             <TextField
               id="edit-subcategory"
