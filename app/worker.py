@@ -1,10 +1,10 @@
 """Run one worker process; database-backed jobs survive app restarts."""
 import logging
 import time
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import case, select
 
 from app.ai import categorize_rows
 from app.database import Import, Job, Rule, Session, Transaction, data_lock, init_db, now
@@ -43,18 +43,31 @@ def parse_import(import_id):
             raise
 
 
-def classify(payload):
+def classify(payload, job_id=None):
     cfg = payload["config"]
     changed = 0
     # Snapshot the requested rows so concurrent uploads cannot extend a job indefinitely.
     ids = payload["ids"]
-    batch_size = 5 if cfg["provider"] == "ollama" else 25
+    batch_size = 1 if cfg["provider"] == "ollama" else 25
+    def progress(processed):
+        if job_id is not None:
+            with Session() as session:
+                job = session.get(Job, job_id)
+                job.result = {"categorized": changed, "processed": processed, "total": len(ids),
+                              "updated_at": now().isoformat()}
+                session.commit()
+    progress(0)
     for offset in range(0, len(ids), batch_size):
+        # Yield to queued statement imports before starting another model request.
+        if job_id is not None:
+            while run_once(imports_only=True):
+                pass
         with Session() as session:
             rows = session.scalars(select(Transaction).where(Transaction.id.in_(ids[offset:offset + batch_size]),
                 Transaction.category == "Other", Transaction.category_source != "manual",
                 Transaction.kind.in_(["purchase", "refund", "fee", "interest"]))).all()
             if not rows:
+                progress(min(offset + batch_size, len(ids)))
                 continue
             versions = {r.id: r.version for r in rows}
             categories = sorted(set(CATEGORIES + list(session.scalars(select(Transaction.category).distinct())) +
@@ -73,7 +86,11 @@ def classify(payload):
                     row.version += 1
                     changed += 1
             session.commit()
-    return {"categorized": changed}
+        progress(min(offset + batch_size, len(ids)))
+        log.info("Job %s progress: %s/%s checked, %s categorized", job_id,
+                 min(offset + batch_size, len(ids)), len(ids), changed)
+    return {"categorized": changed, "processed": len(ids), "total": len(ids),
+            "updated_at": now().isoformat()}
 
 
 def safe_error(exc):
@@ -90,15 +107,16 @@ def safe_error(exc):
     return "Processing failed. Check server logs, then retry."
 
 
-def run_once():
+def run_once(imports_only=False):
     with Session() as session:
         data_lock(session)
-        # Stale jobs are retried after crash; worker holds only short database locks.
-        stale = session.scalars(select(Job).where(Job.status == "running", Job.started_at < now() - timedelta(minutes=15))).all()
-        for job in stale:
-            job.status = "queued"
-        session.commit()
-        job = session.scalar(select(Job).where(Job.status == "queued").order_by(Job.id).with_for_update(skip_locked=True).limit(1))
+        # One worker owns the queue. Recovery happens on restart, never from elapsed
+        # runtime: a healthy categorization can legitimately exceed fifteen minutes.
+        statement = select(Job).where(Job.status == "queued")
+        if imports_only:
+            statement = statement.where(Job.kind == "import")
+        job = session.scalar(statement.order_by(case((Job.kind == "import", 0), else_=1), Job.id)
+                             .with_for_update(skip_locked=True).limit(1))
         if not job:
             return False
         job.status = "running"
@@ -106,7 +124,7 @@ def run_once():
         session.commit()
         job_id, kind, payload = job.id, job.kind, job.payload
     try:
-        result = parse_import(payload["import_id"]) if kind == "import" else classify(payload)
+        result = parse_import(payload["import_id"]) if kind == "import" else classify(payload, job_id)
         with Session() as session:
             job = session.get(Job, job_id)
             job.status, job.result = "completed", result
@@ -129,6 +147,7 @@ def recover_interrupted_jobs():
     with Session() as session:
         for job in session.scalars(select(Job).where(Job.status == "running")):
             job.status = "queued"
+            job.error = None
         session.commit()
 
 

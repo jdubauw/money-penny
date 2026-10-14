@@ -69,7 +69,12 @@ export interface Job {
   kind: string;
   status: string;
   error: string | null;
-  result: { categorized?: number };
+  result: {
+    categorized?: number;
+    processed?: number;
+    total?: number;
+    updated_at?: string;
+  };
 }
 export interface Rule {
   id: number;

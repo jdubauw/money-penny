@@ -206,6 +206,30 @@ export function Settings() {
               <div key={j.id} className="border-b py-3">
                 {j.kind} #{j.id} · {j.status}
                 <ErrorMessage error={j.error} />
+                {j.result.total !== undefined && (
+                  <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                    <p>
+                      {j.result.processed || 0} of {j.result.total} transactions
+                      checked
+                      {j.result.updated_at
+                        ? " · Last progress " +
+                          new Date(j.result.updated_at).toLocaleTimeString()
+                        : ""}
+                    </p>
+                    <progress
+                      className="h-2 w-full accent-primary"
+                      value={j.result.processed || 0}
+                      max={Math.max(1, j.result.total)}
+                      aria-label={"Categorization progress for job " + j.id}
+                    />
+                  </div>
+                )}
+                {j.status === "queued" && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Waiting for the worker. Imports run before the next AI
+                    batch.
+                  </p>
+                )}
                 {j.result.categorized !== undefined && (
                   <p>
                     {j.result.categorized} transactions categorized; review the

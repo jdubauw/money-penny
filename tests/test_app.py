@@ -374,3 +374,50 @@ def test_apply_builtin_rules_updates_existing_unknowns_and_preserves_manual(clie
         assert rows[5].category_source=='manual'
         assert session.query(Audit).count()==4
     assert client.post('/api/transactions/apply-rules').json()['updated']==0
+
+
+def test_worker_prioritizes_imports_and_yields_between_ai_requests(client, monkeypatch):
+    from app import worker
+    from sqlalchemy import select
+    # Even an older categorization yields to a newly queued import.
+    with Session() as session:
+        job = Job(kind="categorize", payload={"config": {"provider": "ollama"}, "ids": []})
+        session.add(job)
+        session.commit()
+        ai_id = job.id
+    first = upload(client)
+    assert run_once()
+    assert client.get(f"/api/imports/{first}").json()["status"] == "preview"
+    with Session() as session:
+        assert session.get(Job, ai_id).status == "queued"
+    commit_result = client.post(f"/api/imports/{first}/commit", json={"selected_indices": [0, 1]})
+    assert commit_result.status_code == 200
+    with Session() as session:
+        rows = session.scalars(select(Transaction)).all()
+        for row in rows:
+            row.category = "Other"
+        session.get(Job, ai_id).payload = {"config": {"provider": "ollama"}, "ids": [r.id for r in rows]}
+        session.commit()
+    calls = []
+    second = None
+    def fake_categorize(cfg, rows, categories):
+        nonlocal second
+        assert len(rows) == 1
+        if calls:
+            assert client.get(f"/api/imports/{second}").json()["status"] == "preview"
+            with Session() as session:
+                progress = session.get(Job, ai_id).result
+                assert progress["processed"] == 1
+                assert progress["total"] == 2
+        else:
+            second = upload(client, account="Second import during AI")
+        calls.append(rows[0].id)
+        return [SimpleNamespace(id=rows[0].id, category="Shopping", subcategory="", explanation="Test")]
+    monkeypatch.setattr(worker, "categorize_rows", fake_categorize)
+    assert run_once()
+    assert len(calls) == 2
+    with Session() as session:
+        completed = session.get(Job, ai_id)
+        assert completed.status == "completed"
+        assert completed.result["processed"] == completed.result["total"] == 2
+        assert completed.result["categorized"] == 2
