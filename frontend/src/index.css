@@ -786,8 +786,8 @@
   }
 }
 #upload-form,
-#settings-form,
-#settings > div {
+#settings:not(.ai-settings-page) #settings-form,
+#settings:not(.ai-settings-page) > div {
   padding: 24px;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -800,8 +800,8 @@
 }
 @media (max-width: 45rem) {
   #upload-form,
-  #settings-form,
-  #settings > div {
+  #settings:not(.ai-settings-page) #settings-form,
+  #settings:not(.ai-settings-page) > div {
     padding: 16px;
   }
   .ledger-table td[data-label="Select"] [data-slot="checkbox"]::before {
@@ -1895,4 +1895,299 @@
     grid-column: 2;
     grid-row: 1;
   }
+}
+
+.ai-settings-page {
+  max-width: 1100px;
+  margin-inline: auto;
+}
+.ai-page-heading {
+  margin-bottom: 24px;
+}
+.ai-page-heading h1 {
+  font-size: 28px;
+}
+.ai-page-heading p {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+.ai-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  min-width: 0;
+  box-shadow: 0 1px 2px var(--border);
+}
+.ai-card-heading {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.ai-card-heading h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.ai-card-heading p {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  line-height: 1.6;
+}
+.ai-provider-body {
+  display: grid;
+  gap: 20px;
+  padding: 20px;
+}
+.ai-provider-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+.ai-provider-options label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  cursor: pointer;
+}
+.ai-provider-options label.is-selected {
+  border-color: var(--primary);
+  background: var(--accent);
+}
+.ai-provider-options label:focus-within {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.ai-provider-options strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+.ai-provider-options small {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  margin-top: 2px;
+}
+.ai-provider-options input {
+  accent-color: var(--primary);
+}
+.ai-provider-configuration {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: end;
+}
+.ai-server-status {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  font-size: 12px;
+  min-width: 0;
+}
+.ai-server-status > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+}
+.ai-server-status > div + div {
+  border-top: 1px solid var(--border);
+}
+.ai-server-status dt {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+}
+.ai-server-status dd {
+  overflow-wrap: anywhere;
+  text-align: right;
+  min-width: 0;
+}
+.ai-privacy-note {
+  display: flex;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 8px;
+  background: var(--accent);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.ai-privacy-note > svg {
+  color: var(--primary);
+  margin-top: 2px;
+}
+.ai-privacy-note strong {
+  font-weight: 600;
+}
+.ai-provider-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.ai-card-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--muted);
+  border-radius: 0 0 12px 12px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  line-height: 1.6;
+}
+.ai-card-footer code {
+  color: var(--foreground);
+  font-size: 10px;
+}
+.ai-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 24px;
+  margin-top: 24px;
+}
+.ai-rule-labels,
+.ai-rule-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+}
+.ai-rule-labels {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  border-bottom: 1px solid var(--border);
+  padding-block: 8px;
+}
+.ai-rule-row {
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.ai-rule-row:last-child {
+  border-bottom: 0;
+}
+.ai-rule-row > span {
+  overflow-wrap: anywhere;
+}
+.ai-rule-category {
+  justify-self: start;
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: var(--primary);
+  background: var(--accent);
+  font-size: 11px;
+}
+#rules-list > p {
+  padding: 20px;
+  font-size: 12px;
+}
+.ai-jobs-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+.ai-status {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 10px;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+.ai-status.is-running {
+  background: var(--accent);
+  color: var(--primary);
+}
+.ai-status.is-completed {
+  background: var(--change-lower-bg);
+  color: var(--change-lower);
+}
+.ai-status.is-failed {
+  background: var(--change-higher-bg);
+  color: var(--destructive);
+}
+.ai-job-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.ai-job-row:last-child {
+  border-bottom: 0;
+}
+.ai-job-icon {
+  border-radius: 8px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  padding: 8px;
+  flex-shrink: 0;
+}
+.ai-job-body {
+  min-width: 0;
+  flex: 1;
+  font-size: 12px;
+}
+.ai-job-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.ai-job-title strong {
+  font-weight: 500;
+}
+.ai-job-body > p {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  margin-top: 6px;
+}
+.ai-reset-section {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.ai-reset-section > button {
+  margin-top: 12px;
+}
+@media (max-width: 45rem) {
+  .ai-settings-grid,
+  .ai-provider-configuration {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ai-provider-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ai-provider-actions {
+    flex-direction: column;
+  }
+  .ai-rule-labels,
+  .ai-rule-row {
+    padding-inline: 14px;
+    gap: 8px;
+  }
+  .ai-card-heading,
+  .ai-provider-body {
+    padding: 16px;
+  }
+  .ai-job-row {
+    padding: 14px;
+  }
+}
+
+.ai-provider-options input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  flex-shrink: 0;
 }

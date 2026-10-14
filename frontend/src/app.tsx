@@ -303,7 +303,7 @@ function Shell() {
           </Button>
         </div>
         <main className="workspace-main">
-          {path !== "/" && path !== "/imports" && (
+          {path !== "/" && path !== "/imports" && path !== "/settings" && (
             <header className="page-heading">
               <h1>{page.title}</h1>
               <p className="mt-2 text-sm text-muted-foreground">

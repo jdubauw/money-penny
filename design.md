@@ -17,3 +17,5 @@ Modern minimal spending workbench. All app routes share one visual system.
 - Imports: three-stage workflow indicator, keyboard-accessible file picker and drag-and-drop area, account-type segments, optional CSV mapping accordion, and grouped archive rows with actual upload dates and status badges.
 
 - Expanded spending details: net spending strip with purchase/refund/fee/interest breakdown; category donut with matching legend and signed amounts; merchant shares, top-six/all-twelve disclosure and aggregate footer. On mobile, cards stack and merchant bars sit below each merchant.
+
+- AI & rules: selectable provider cards including rules-only mode, local model settings and read-only server status, privacy callout, merchant rule rows and live job status/progress cards. Configuration and lower cards stack on mobile; reset stays separate below.
