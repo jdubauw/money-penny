@@ -10,6 +10,8 @@ import { Brand } from "@/components/brand";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   LayoutDashboard,
+  Store,
+  PiggyBank,
   ArrowLeftRight,
   FileUp,
   Settings2,
@@ -174,6 +176,20 @@ function Shell() {
       description: "Spending across your imported accounts.",
     },
     {
+      path: "/reports/vendors",
+      view: "vendors",
+      icon: Store,
+      title: "Vendor analysis",
+      description: "Explore spending by vendor.",
+    },
+    {
+      path: "/reports/savings",
+      view: "savings",
+      icon: PiggyBank,
+      title: "Savings opportunities",
+      description: "Review recurring costs and spending targets.",
+    },
+    {
       path: "/transactions",
       view: "transactions",
       icon: ArrowLeftRight,
@@ -306,7 +322,8 @@ function Shell() {
           {path !== "/" &&
             path !== "/imports" &&
             path !== "/settings" &&
-            path !== "/transactions" && (
+            path !== "/transactions" &&
+            !path.startsWith("/reports/") && (
               <header className="page-heading">
                 <h1>{page.title}</h1>
                 <p className="mt-2 text-sm text-muted-foreground">

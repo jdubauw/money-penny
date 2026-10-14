@@ -9,6 +9,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { App } from "./app";
+import { VendorAnalysis, SavingsOpportunities } from "./pages/reports";
 import { Overview } from "./pages/overview";
 import { Transactions } from "./pages/transactions";
 import { Imports } from "./pages/imports";
@@ -22,6 +23,16 @@ const queryClient = new QueryClient({
 });
 const rootRoute = createRootRoute({ component: App });
 const routeTree = rootRoute.addChildren([
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/reports/vendors",
+    component: VendorAnalysis,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/reports/savings",
+    component: SavingsOpportunities,
+  }),
   createRoute({
     getParentRoute: () => rootRoute,
     path: "/",

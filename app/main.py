@@ -564,6 +564,7 @@ def reset_data(body: ResetData, session=Depends(db)):
             moved = True
         for model in [Audit, Transaction, Rule, Job, Import]:
             session.execute(delete(model))
+        session.execute(delete(Setting).where(Setting.key.like("savings:%")))
         session.commit()
     except Exception:
         session.rollback()
@@ -663,6 +664,64 @@ def remove_rule(rule_id: int, session=Depends(db)):
     session.delete(rule)
     session.commit()
     return {"ok": True}
+
+
+
+@app.get("/api/reports/vendors", dependencies=[Depends(auth)])
+def vendors_report(filters=Depends(filter_params), split: bool = False, session=Depends(db)):
+    from app.reporting import vendor_report
+    return vendor_report(session.scalars(filtered(session, **filters)).all(), split)
+
+
+class ServicePlan(BaseModel):
+    vendor: str = Field(min_length=1, max_length=200)
+    category: str = Field(default="", max_length=100)
+    cadence: Literal["monthly", "annual"] = "monthly"
+    cost_cents: int = Field(ge=0, le=100000000)
+    confirmed: bool = False
+    decision: Literal["keep", "review", "cancel"] = "review"
+
+
+class SavingsTarget(BaseModel):
+    category: str = Field(min_length=1, max_length=100)
+    percent: float = Field(ge=0, le=100)
+
+
+@app.get("/api/reports/savings", dependencies=[Depends(auth)])
+def savings(filters=Depends(filter_params), session=Depends(db)):
+    from app.reporting import savings_report
+    plans = {s.value["vendor"]: s.value for s in session.scalars(select(Setting).where(Setting.key.like("savings:service:%")))}
+    targets = {s.value["category"]: s.value["percent"] for s in session.scalars(select(Setting).where(Setting.key.like("savings:target:%")))}
+    return savings_report(session.scalars(filtered(session, **filters)).all(), plans, targets)
+
+
+def save_report_setting(session, key, value):
+    item = session.get(Setting, key)
+    if item:
+        item.value = value
+    else:
+        session.add(Setting(key=key, value=value))
+    session.commit()
+    return {"saved": True}
+
+
+@app.put("/api/reports/savings/service", dependencies=[Depends(auth)])
+def save_service(body: ServicePlan, session=Depends(db)):
+    return save_report_setting(session, "savings:service:" + hashlib.sha256(body.vendor.encode()).hexdigest(), body.model_dump())
+
+
+@app.delete("/api/reports/savings/service", dependencies=[Depends(auth)])
+def remove_service(vendor: str = Query(min_length=1, max_length=200), session=Depends(db)):
+    item = session.get(Setting, "savings:service:" + hashlib.sha256(vendor.encode()).hexdigest())
+    if item:
+        session.delete(item)
+        session.commit()
+    return {"saved": True}
+
+
+@app.put("/api/reports/savings/target", dependencies=[Depends(auth)])
+def save_savings_target(body: SavingsTarget, session=Depends(db)):
+    return save_report_setting(session, "savings:target:" + hashlib.sha256(body.category.encode()).hexdigest(), body.model_dump())
 
 
 app.mount("/static", StaticFiles(directory=STATIC, check_dir=False), name="static")

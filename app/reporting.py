@@ -109,3 +109,75 @@ def spending_report(rows, view="monthly", period=None, today=None):
         "imported_start": min((r.date.isoformat() for r in current), default=None),
         "imported_through": max((r.date.isoformat() for r in current), default=None),
     }
+
+
+def vendor_report(rows, split=False):
+    groups = defaultdict(list)
+    for row in rows:
+        if row.kind in SPENDING_KINDS:
+            groups[(row.vendor, row.account if split else "", row.category if split else "")].append(row)
+    result = []
+    for (vendor, account, category), members in groups.items():
+        purchases = [r.amount_cents for r in members if r.kind == "purchase" and r.amount_cents > 0]
+        result.append(dict(vendor=vendor, account=account,
+            category=category or ", ".join(sorted({r.category for r in members})),
+            accounts=sorted({r.account for r in members}),
+            spend_cents=sum(r.amount_cents for r in members), count=len(members),
+            average_cents=round(sum(purchases) / len(purchases)) if purchases else None,
+            largest_cents=max(purchases) if purchases else None))
+    return sorted(result, key=lambda r: (-r["spend_cents"], r["vendor"], r["account"], r["category"]))
+
+
+def savings_report(rows, plans, targets):
+    from statistics import median
+    groups = defaultdict(list)
+    for row in rows:
+        groups[row.vendor].append(row)
+    services = []
+    for vendor in sorted(set(groups) | set(plans)):
+        members = groups[vendor]
+        purchases = sorted([r for r in members if r.kind == "purchase" and r.amount_cents > 0], key=lambda r: r.date)
+        days = sorted({r.date for r in purchases})
+        gaps = [(b - a).days for a, b in zip(days, days[1:])]
+        monthly = len(days) >= 3 and gaps and all(20 <= gap <= 40 for gap in gaps)
+        stable = bool(purchases) and max(r.amount_cents for r in purchases) <= min(r.amount_cents for r in purchases) * 1.25
+        plan = plans.get(vendor)
+        if plan is None and not (monthly and stable):
+            continue
+        plan = plan or {}
+        cadence = plan.get("cadence", "monthly")
+        cost = plan.get("cost_cents", round(median(r.amount_cents for r in purchases)) if purchases else 0)
+        confirmed = plan.get("confirmed", False)
+        annual = cost * (12 if cadence == "monthly" else 1)
+        services.append(dict(vendor=vendor, category=plan.get("category") or (purchases[-1].category if purchases else ""),
+            cadence=cadence, cost_cents=cost, confirmed=confirmed, decision=plan.get("decision", "review"),
+            spend_cents=sum(r.amount_cents for r in members if r.kind in SPENDING_KINDS),
+            months_charged=len({(r.date.year, r.date.month) for r in purchases}),
+            last_charge=days[-1].isoformat() if days else None, annual_cents=annual,
+            savings_cents=annual if confirmed and plan.get("decision") == "cancel" else 0))
+    # Exclude confirmed services from category targets to avoid overlapping estimates.
+    confirmed_vendors = {s["vendor"] for s in services if s["confirmed"]}
+    categories = defaultdict(int)
+    months = {(r.date.year, r.date.month) for r in rows}
+    for row in rows:
+        if row.kind in SPENDING_KINDS and row.vendor not in confirmed_vendors:
+            categories[row.category] += row.amount_cents
+    missing_months = []
+    if months:
+        first_month = min(y * 12 + m - 1 for y, m in months)
+        last_month = max(y * 12 + m - 1 for y, m in months)
+        for absolute in range(first_month, last_month + 1):
+            year, month = divmod(absolute, 12)
+            if (year, month + 1) not in months:
+                missing_months.append(f"{year:04d}-{month + 1:02d}")
+    areas = []
+    for category in sorted(set(categories) | set(targets)):
+        observed = max(0, categories[category])
+        annual = round(observed * 12 / len(months)) if months else 0
+        percent = targets.get(category, 0)
+        areas.append(dict(category=category, spend_cents=observed, annual_cents=annual, percent=percent,
+                          savings_cents=round(annual * percent / 100)))
+    return dict(services=services, targets=areas, observed_months=len(months), missing_months=missing_months,
+                observed_start=min((r.date.isoformat() for r in rows), default=None),
+                observed_end=max((r.date.isoformat() for r in rows), default=None),
+                total_savings_cents=sum(s["savings_cents"] for s in services) + sum(a["savings_cents"] for a in areas))

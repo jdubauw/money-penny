@@ -10,6 +10,8 @@ A private, single-user web application for uploading bank exports, reviewing tra
 - Import previews with row selection, possible-duplicate flags, original-file downloads, and explicit acknowledgement of reconciliation warnings. Reports include only committed rows.
 - Repeat-file detection per account. Overlap checks compare date, original description, and exact amount as a multiset; legitimate repeated purchases within an export remain separate. Candidates are suggestions, not automatic deletions.
 - Monthly, quarterly, yearly, and available prior-year summaries with account/period selectors, six-period spending history, comparisons, sortable category amounts and percentages, and an interactive donut. Category/merchant drill-down and CSV downloads preserve the selected account and calendar range.
+- Dedicated Vendor Analysis with date/account/category/search filters, sortable purchase metrics, optional account/category breakdown, transaction drill-down, and CSV export. Net spend includes refunds; purchase averages exclude refunds and fees.
+- Savings Opportunities with recurring-charge suggestions, manually added monthly/annual services, saved Keep/Review/Cancel decisions, editable category reduction targets, and CSV export. Only confirmed cancellations count toward subscription savings. Confirmed services are excluded from category targets. Category baselines annualize spending using months with imported transactions; missing and partial statements can distort estimates. Saved service decisions apply globally across accounts and periods.
 - Date/account/category/type/merchant/amount filters in the ledger, review queue, bulk corrections, merchant rules, correction history, and CSV export.
 - AI categorization of unknown spending merchants, and natural-language questions translated into proposed filters for your approval. SQL/database logic calculates totals.
 - Signed, expiring HTTP-only sessions, password-change session invalidation, login throttling, same-origin mutation checks, and server-side AI credentials.
@@ -128,7 +130,7 @@ Run one worker process. Interrupted jobs are requeued when that worker restarts;
 In **AI & rules → Reset all data**, open the confirmation dialog, enter your
 sign-in password, type `DELETE ALL DATA`, and click **Delete all data permanently**.
 This removes all transactions, accounts, statement files, merchant rules, edit
-history, and processing history. Your login and saved AI settings are retained.
+history, processing history, and saved savings plans and targets. Your login and saved AI settings are retained.
 Browser CSV mapping preferences are cleared on the device performing the reset.
 Wait for queued or running import/AI jobs to finish before resetting. This cannot
 be undone from the app; separately created backups are not deleted.

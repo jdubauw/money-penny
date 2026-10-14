@@ -2450,3 +2450,47 @@
 .transaction-ai-input input {
   background: var(--card);
 }
+
+.report-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+.report-table {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+.report-table table {
+  width: 100%;
+  font-size: 0.875rem;
+  border-collapse: collapse;
+}
+.report-table th {
+  text-align: left;
+  background: var(--secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.report-table th,
+.report-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.report-table td {
+  font-variant-numeric: tabular-nums;
+}
+.report-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.report-table tbody tr:hover {
+  background: var(--secondary);
+}
+.report-editor {
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  display: grid;
+  gap: 1rem;
+}
