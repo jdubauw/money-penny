@@ -5,6 +5,8 @@ import {
   ArrowDownToLine,
   ArrowDownRight,
   ArrowUpRight,
+  ArrowRight,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -19,6 +21,7 @@ import { useLedger } from "@/lib/state";
 import type { ReportView, SpendingReport } from "@/lib/types";
 import { ErrorMessage, Loading } from "@/components/shared";
 import {
+  categoryColor,
   CategoryDonut,
   CategoryComparisonBars,
   SpendingBars,
@@ -95,6 +98,7 @@ export function Overview() {
         { signal },
       ),
   });
+  const [showAllMerchants, setShowAllMerchants] = useState(false);
   const r = query.data;
   const anchor = r ? `${r.view}:${r.period}` : "";
   const comparePeriod =
@@ -618,26 +622,20 @@ export function Overview() {
               )}
             </article>
             <details className="dashboard-details">
-              <summary>Spending details &amp; category distribution</summary>
-              <div className="mt-4 grid gap-6 md:grid-cols-2">
-                <div>
-                  {[
-                    ["Purchases", r.purchases_cents],
-                    ["Refunds", r.refunds_cents],
-                    ["Fees", r.fees_cents],
-                    ["Interest", r.interest_cents],
-                  ].map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="flex justify-between border-b py-2 text-sm"
-                    >
-                      <span>{label}</span>
-                      <span>{money(Number(value))}</span>
-                    </div>
-                  ))}
+              <summary>
+                Spending details &amp; category distribution{" "}
+                <ChevronDown className="size-4" />
+              </summary>
+              <div className="spending-detail-content">
+                <header className="spending-detail-heading">
+                  <div>
+                    <h2>Spending details</h2>
+                    <p>
+                      {r.start} – {r.end} · {r.spending_count} spending
+                      transactions
+                    </p>
+                  </div>
                   <Button
-                    variant="link"
-                    className="px-0"
                     disabled={!r.review_count}
                     onClick={() => {
                       apply({
@@ -651,49 +649,191 @@ export function Overview() {
                       void navigate({ to: "/transactions" });
                     }}
                   >
-                    Review {r.review_count} transactions
+                    Review transactions <ArrowRight className="size-4" />
                   </Button>
-                  {r.unclassified_credit_cents !== 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      {money(Math.abs(r.unclassified_credit_cents))} in
-                      unclassified credits is excluded until reviewed.
+                </header>
+                <article className="spending-net-card">
+                  <div className="spending-net-total">
+                    <span>Net spending</span>
+                    <strong>{money(r.spend_cents)}</strong>
+                    <p>
+                      {r.spending_count} transactions ·{" "}
+                      <button onClick={() => drill(r)}>View all</button>
                     </p>
-                  )}
-                  <h2 className="mt-4">Top merchants</h2>
-                  {r.vendors.map((vendor) => (
-                    <div
-                      key={vendor.name}
-                      className="flex justify-between gap-3 text-sm"
-                    >
-                      <Button
-                        variant="link"
-                        className="min-w-0 truncate px-0"
-                        data-drill="merchant"
-                        onClick={() => drill(r, { vendor: vendor.name })}
-                      >
-                        {vendor.name}
-                      </Button>
-                      <span className="shrink-0 self-center">
-                        {money(vendor.amount_cents)}
-                      </span>
+                  </div>
+                  <dl>
+                    {(
+                      [
+                        ["Purchases", r.purchases_cents],
+                        ["Refunds", r.refunds_cents],
+                        ["Fees", r.fees_cents],
+                        ["Interest", r.interest_cents],
+                      ] as const
+                    ).map(([label, value]) => (
+                      <div key={label}>
+                        <dt>{label}</dt>
+                        <dd>{money(value)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </article>
+                {r.unclassified_credit_cents !== 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {money(Math.abs(r.unclassified_credit_cents))} in
+                    unclassified credits is excluded until reviewed.
+                  </p>
+                )}
+                <div className="spending-detail-grid">
+                  <article className="spending-category-card">
+                    <header>
+                      <h3>By category</h3>
+                      <span>{r.categories.length} categories</span>
+                    </header>
+                    <div className="spending-donut-wrap">
+                      {r.donut_total_cents > 0 ? (
+                        <CategoryDonut
+                          categories={r.categories}
+                          total={r.donut_total_cents}
+                          positiveOnly={r.donut_uses_positive_balances}
+                          onSelect={(category) => drill(r, { category })}
+                        />
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No positive category balances for this period.
+                        </p>
+                      )}
                     </div>
-                  ))}
-                </div>
-                <div className="mx-auto w-full max-w-[260px]">
-                  {r.spending_count > 0 && (
-                    <CategoryDonut
-                      categories={r.categories}
-                      total={r.donut_total_cents}
-                      positiveOnly={r.donut_uses_positive_balances}
-                      onSelect={(category) => drill(r, { category })}
-                    />
-                  )}
-                  {r.donut_uses_positive_balances && (
-                    <p className="text-xs text-muted-foreground">
-                      Percent of positive balances. Net spending includes
-                      category credits.
-                    </p>
-                  )}
+                    <ul className="spending-category-legend">
+                      {r.categories.map((category) => (
+                        <li key={category.name}>
+                          <button
+                            data-drill="category"
+                            onClick={() =>
+                              drill(r, { category: category.name })
+                            }
+                          >
+                            <i
+                              className={`category-dot ${categoryColor(category.name)}`}
+                            />
+                            {category.name}
+                          </button>
+                          <span>
+                            {category.percent === null
+                              ? "—"
+                              : category.percent + "%"}
+                          </span>
+                          <strong>{money(category.amount_cents)}</strong>
+                        </li>
+                      ))}
+                    </ul>
+                    {r.donut_uses_positive_balances && (
+                      <p className="spending-distribution-note">
+                        Percent of positive balances. Net spending includes
+                        category credits.
+                      </p>
+                    )}
+                  </article>
+                  <article className="spending-merchants-card">
+                    <header>
+                      <h3>Top merchants</h3>
+                      {r.vendors.length > 6 && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          aria-expanded={showAllMerchants}
+                          onClick={() => setShowAllMerchants(!showAllMerchants)}
+                        >
+                          {showAllMerchants
+                            ? "Show top 6"
+                            : "Show all " + r.vendors.length}
+                          <ChevronDown className="size-3" />
+                        </Button>
+                      )}
+                    </header>
+                    <div className="spending-merchant-labels">
+                      <span>Merchant</span>
+                      <span>Share of spending</span>
+                      <span>Amount</span>
+                    </div>
+                    <ul className="spending-merchant-list">
+                      {r.vendors
+                        .slice(0, showAllMerchants ? 12 : 6)
+                        .map((vendor) => {
+                          const share =
+                            r.spend_cents > 0
+                              ? (vendor.amount_cents / r.spend_cents) * 100
+                              : null;
+                          const maximum = Math.max(
+                            1,
+                            ...r.vendors.map((v) => Math.abs(v.amount_cents)),
+                          );
+                          return (
+                            <li key={vendor.name}>
+                              <div>
+                                <button
+                                  data-drill="merchant"
+                                  onClick={() =>
+                                    drill(r, { vendor: vendor.name })
+                                  }
+                                >
+                                  {vendor.name}
+                                </button>
+                                <small>
+                                  {vendor.transaction_count}{" "}
+                                  {vendor.transaction_count === 1
+                                    ? "transaction"
+                                    : "transactions"}
+                                </small>
+                              </div>
+                              <div className="spending-merchant-share">
+                                <div className="spending-share-track">
+                                  <span
+                                    style={{
+                                      width:
+                                        (Math.abs(vendor.amount_cents) /
+                                          maximum) *
+                                          100 +
+                                        "%",
+                                    }}
+                                  />
+                                </div>
+                                <span>
+                                  {share === null
+                                    ? "—"
+                                    : share.toFixed(1) + "%"}
+                                </span>
+                              </div>
+                              <strong>{money(vendor.amount_cents)}</strong>
+                            </li>
+                          );
+                        })}
+                    </ul>
+                    {!r.vendors.length && (
+                      <p className="p-5 text-sm text-muted-foreground">
+                        No spending merchants for this period.
+                      </p>
+                    )}
+                    <footer>
+                      <strong>Top {r.vendors.length} total</strong>
+                      <span>
+                        {r.spend_cents > 0
+                          ? (
+                              (r.vendors.reduce(
+                                (sum, v) => sum + v.amount_cents,
+                                0,
+                              ) /
+                                r.spend_cents) *
+                              100
+                            ).toFixed(1) + "% of spending"
+                          : "—"}
+                      </span>
+                      <strong>
+                        {money(
+                          r.vendors.reduce((sum, v) => sum + v.amount_cents, 0),
+                        )}
+                      </strong>
+                    </footer>
+                  </article>
                 </div>
               </div>
             </details>

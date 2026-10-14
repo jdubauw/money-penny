@@ -1590,3 +1590,298 @@
 .import-dropzone [data-slot="button"] {
   min-height: 44px;
 }
+
+/* Hallmark · pre-emit critique: P4 H5 E4 S5 R5 V4 */
+.dashboard-details {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+.dashboard-details summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  cursor: pointer;
+  color: var(--muted-foreground);
+}
+.dashboard-details summary::-webkit-details-marker {
+  display: none;
+}
+.dashboard-details[open] summary svg {
+  transform: rotate(180deg);
+}
+.spending-detail-content {
+  display: grid;
+  gap: 16px;
+  padding-top: 12px;
+}
+.spending-detail-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.spending-detail-heading h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.spending-detail-heading p {
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.spending-net-card,
+.spending-category-card,
+.spending-merchants-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px var(--border);
+  min-width: 0;
+}
+.spending-net-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  padding: 24px;
+  gap: 24px;
+}
+.spending-net-total > span,
+.spending-net-total p,
+.spending-net-card dt {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.spending-net-total > strong {
+  display: block;
+  font-size: 32px;
+  line-height: 1.25;
+  letter-spacing: -0.04em;
+}
+.spending-net-total p {
+  margin-top: 4px;
+}
+.spending-net-total button {
+  color: var(--primary);
+  cursor: pointer;
+}
+.spending-net-card dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  border-left: 1px solid var(--border);
+  padding-left: 24px;
+}
+.spending-net-card dd {
+  font-size: 13px;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.spending-net-card dl > div:first-child dd {
+  font-weight: 600;
+}
+.spending-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 16px;
+  align-items: stretch;
+}
+.spending-detail-grid article > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  min-height: 65px;
+}
+.spending-detail-grid h3 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.spending-detail-grid header > span {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.spending-donut-wrap {
+  width: 190px;
+  max-width: 100%;
+  margin: 20px auto;
+}
+.spending-category-legend {
+  padding: 0 20px 20px;
+  display: grid;
+  gap: 4px;
+}
+.spending-category-legend li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px 86px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.spending-category-legend button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  min-height: 36px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.spending-category-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.spending-category-legend li > span {
+  text-align: right;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.spending-category-legend strong {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.spending-distribution-note {
+  padding: 0 20px 20px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.spending-merchants-card {
+  display: flex;
+  flex-direction: column;
+}
+.spending-merchant-labels,
+.spending-merchant-list li,
+.spending-merchants-card footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 84px;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 20px;
+}
+.spending-merchant-labels {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  padding-bottom: 4px;
+}
+.spending-merchant-labels > :last-child,
+.spending-merchant-list strong,
+.spending-merchants-card footer > :last-child {
+  text-align: right;
+}
+.spending-merchant-list button {
+  text-align: left;
+  font-size: 12px;
+  min-height: 28px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.spending-merchant-list small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.spending-merchant-list strong {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.spending-merchant-share {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.spending-merchant-share > span {
+  font-size: 11px;
+  min-width: 40px;
+  text-align: right;
+  color: var(--muted-foreground);
+}
+.spending-share-track {
+  flex: 1;
+  height: 4px;
+  background: var(--muted);
+  border-radius: 4px;
+}
+.spending-share-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+.spending-merchants-card footer {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  background: var(--muted);
+  border-radius: 0 0 12px 12px;
+  font-size: 12px;
+}
+.spending-merchants-card footer > span {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.spending-detail-content button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+@media (max-width: 64rem) {
+  .spending-net-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .spending-net-card dl {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    padding: 16px 0 0;
+  }
+  .spending-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 45rem) {
+  .spending-detail-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .spending-net-card {
+    padding: 20px;
+  }
+  .spending-net-card dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .spending-merchant-labels {
+    display: none;
+  }
+  .spending-merchant-list li {
+    grid-template-columns: minmax(0, 1fr) 84px;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+  .spending-merchant-list li > div:first-child {
+    grid-column: 1;
+  }
+  .spending-merchant-list strong {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .spending-merchant-share {
+    grid-column: 1 / -1;
+  }
+  .spending-merchants-card footer {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 16px;
+  }
+  .spending-merchants-card footer > span {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .spending-merchants-card footer > :last-child {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}

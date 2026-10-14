@@ -15,3 +15,5 @@ Modern minimal spending workbench. All app routes share one visual system.
 - Overview: compact period/account filters, optional inline comparison, one summary/history card, and a category comparison table with TanStack horizontal bars. Secondary details and donut sit in an expandable section. Monthly history covers twelve calendar months.
 
 - Imports: three-stage workflow indicator, keyboard-accessible file picker and drag-and-drop area, account-type segments, optional CSV mapping accordion, and grouped archive rows with actual upload dates and status badges.
+
+- Expanded spending details: net spending strip with purchase/refund/fee/interest breakdown; category donut with matching legend and signed amounts; merchant shares, top-six/all-twelve disclosure and aggregate footer. On mobile, cards stack and merchant bars sit below each merchant.
