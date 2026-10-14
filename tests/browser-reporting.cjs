@@ -85,6 +85,13 @@ const assert = require('node:assert/strict');
   await page.locator('[data-series-period="2026-09"]').click();
   await page.locator('#overview-content[data-report-period="2026-09"]').waitFor();
   await page.locator('#overview-content .metric').getByText('$6,000.00',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Compare periods',exact:true}).click();
+  await page.locator('#spending-comparison').getByText('$10,000.00',{exact:true}).first().waitFor();
+  assert.equal(await page.locator('#compare-period').inputValue(),'2026-08');
+  await page.locator('[data-comparison-change]').getByText('$4,000.00 less in September 2026 (-40.0%)',{exact:true}).waitFor();
+  await page.locator('#compare-period').selectOption('2026-07');
+  await page.locator('[data-comparison-change]').getByText('$1,000.00 less in September 2026 (-14.3%)',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Hide comparison',exact:true}).click();
   await page.getByRole('button',{name:'Quarterly',exact:true}).click();
   await page.locator('#overview-content[data-report-period="2026-Q3"]').waitFor();
   await page.locator('#overview-content .metric').getByText('$23,000.00',{exact:true}).waitFor();
@@ -111,9 +118,12 @@ const assert = require('node:assert/strict');
   await page.locator('#overview-content .metric').getByText('$2,268.97',{exact:true}).waitFor();
   fs.mkdirSync('outputs/app-preview',{recursive:true});
   await page.screenshot({path:'outputs/app-preview/reporting-desktop.png',fullPage:true});
+  await page.getByRole('button',{name:'Compare periods',exact:true}).click();
+  await page.locator('#spending-comparison [data-comparison-change]').waitFor();
   for(const width of [320,375,414,768,1440]) {
     await page.setViewportSize({width,height:1000});
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Report overflow at '+width);
+    assert.equal(await page.locator('.comparison-total').evaluateAll(elements=>elements.every(el=>el.scrollWidth<=el.clientWidth)),true,'Comparison totals fit at '+width);
     const missing=await page.locator('button:visible').evaluateAll(buttons=>buttons.filter(b=>getComputedStyle(b).whiteSpace!=='nowrap').map(b=>b.textContent));
     assert.deepEqual(missing,[]);
   }

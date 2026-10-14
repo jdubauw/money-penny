@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SpendingComparison } from "@/components/spending-comparison";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowDownToLine, ArrowUpDown, ChevronRight } from "lucide-react";
@@ -25,6 +26,7 @@ export function Overview() {
       apply,
     } = useLedger(),
     navigate = useNavigate();
+  const [compare, setCompare] = useState(false);
   const [sort, setSort] = useState<{
     key: "name" | "amount";
     ascending: boolean;
@@ -145,6 +147,14 @@ export function Overview() {
         </div>
         <Button
           variant="outline"
+          aria-expanded={compare}
+          aria-controls="spending-comparison"
+          onClick={() => setCompare(!compare)}
+        >
+          {compare ? "Hide comparison" : "Compare periods"}
+        </Button>
+        <Button
+          variant="outline"
           disabled={!r?.count}
           onClick={() => {
             window.location.href = "/api/export?" + queryString(scope);
@@ -190,6 +200,23 @@ export function Overview() {
           </NativeSelect>
         </Field>
       </div>
+      {compare && r && (
+        <SpendingComparison
+          key={`${r.view}:${r.period}`}
+          current={r}
+          account={selection.account}
+          onDrill={(report, category) => {
+            apply({
+              start: report.start,
+              end: report.end,
+              spending: "true",
+              ...(selection.account ? { account: selection.account } : {}),
+              ...(category ? { category } : {}),
+            });
+            void navigate({ to: "/transactions" });
+          }}
+        />
+      )}
       {query.isPending ? (
         <Loading />
       ) : query.error ? (
