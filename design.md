@@ -11,3 +11,5 @@ Modern minimal spending workbench. All app routes share one visual system.
 - Mobile: compact ledger cards; filters can expand; upload remains visible; page actions wrap into deliberate rows. No horizontal page scrolling.
 - Motion: short color transitions and navigation drawer entrance. Reduced-motion preference disables spatial animation. No animated totals or decorative reveals.
 - Copy: direct action labels, explanatory validation messages, actual imported data only.
+
+- Overview: compact period/account filters, optional inline comparison, one summary/history card, and a category comparison table with TanStack horizontal bars. Secondary details and donut sit in an expandable section. Monthly history covers twelve calendar months.

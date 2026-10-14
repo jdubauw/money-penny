@@ -70,7 +70,7 @@ def spending_report(rows, view="monthly", period=None, today=None):
                       "percent": round(value / denominator * 100, 1) if value >= 0 and denominator else None}
                      for name, value in amounts.items()]
     series = []
-    for offset in range(-5, 1):
+    for offset in range(-11 if view == "monthly" else -5, 1):
         beginning = shift(start, offset, view)
         if beginning is None:
             continue

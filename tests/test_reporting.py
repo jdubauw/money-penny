@@ -17,6 +17,8 @@ def test_monthly_history_missing_periods_and_percentages():
     result = spending_report(rows, "monthly", "2026-03", date(2026, 3, 10))
     assert result["spend_cents"] == 9000 and result["spending_count"] == 3 and result["count"] == 4
     assert result["is_current"]
+    assert len(result["series"]) == 12
+    assert result["series"][0]["key"] == "2025-04"
     assert result["series"][-2]["key"] == "2026-02" and not result["series"][-2]["has_data"]
     assert result["previous_spend_cents"] is None and result["change_cents"] is None
     assert result["average_cents"] == 10000 and result["average_period_count"] == 1

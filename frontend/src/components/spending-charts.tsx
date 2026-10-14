@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { barY, defineChart, ruleY } from "@tanstack/charts";
+import { barX, barY, defineChart, ruleY } from "@tanstack/charts";
 import { pie, polar, radialArc } from "@tanstack/charts/polar";
 import { scaleBand } from "@tanstack/charts/scales/band";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
@@ -61,7 +61,11 @@ export function SpendingBars({
   series,
   average,
   onSelect,
+  comparedPeriod,
+  compact = false,
 }: {
+  comparedPeriod?: string;
+  compact?: boolean;
   series: SpendingPeriod[];
   average: number | null;
   onSelect: (key: string) => void;
@@ -77,11 +81,15 @@ export function SpendingBars({
             y: (row) => (row.has_data ? row.spend_cents : null),
             fill: (row) =>
               row.is_selected
-                ? "var(--report-blue-selected)"
-                : "var(--report-blue)",
+                ? "var(--primary)"
+                : compact
+                  ? row.key === comparedPeriod
+                    ? "var(--chart-compared)"
+                    : "var(--chart-history)"
+                  : "var(--report-blue)",
             radius: 3,
           }),
-          ...(average === null
+          ...(average === null || compact
             ? []
             : [
                 ruleY([average], {
@@ -92,30 +100,28 @@ export function SpendingBars({
         ],
         scales: {
           x: {
-            scale: () =>
-              scaleBand()
-                .domain(series.map((row) => row.key))
-                .padding(0.25),
+            scale: scaleBand()
+              .domain(series.map((row) => row.key))
+              .padding(0.25),
             axis: false,
           },
           y: {
-            scale: () =>
-              scaleLinear().domain([
-                Math.min(
-                  0,
-                  ...series
-                    .filter((row) => row.has_data)
-                    .map((row) => row.spend_cents),
-                  average ?? 0,
-                ),
-                Math.max(
-                  100,
-                  ...series
-                    .filter((row) => row.has_data)
-                    .map((row) => row.spend_cents),
-                  average ?? 0,
-                ),
-              ]),
+            scale: scaleLinear().domain([
+              Math.min(
+                0,
+                ...series
+                  .filter((row) => row.has_data)
+                  .map((row) => row.spend_cents),
+                average ?? 0,
+              ),
+              Math.max(
+                100,
+                ...series
+                  .filter((row) => row.has_data)
+                  .map((row) => row.spend_cents),
+                average ?? 0,
+              ),
+            ]),
             nice: true,
             grid: true,
             axis: {
@@ -123,6 +129,8 @@ export function SpendingBars({
             },
           },
         },
+        guides: compact ? false : undefined,
+        margin: compact ? { top: 8, bottom: 0, left: 4, right: 4 } : undefined,
         theme: chartTheme,
         tooltip: {
           use: tooltip,
@@ -130,20 +138,27 @@ export function SpendingBars({
             `${point.datum.label}: ${money(point.datum.spend_cents)}`,
         },
       }),
-    [series, average],
+    [series, average, compact, comparedPeriod],
   );
   return (
     <div className="report-bars">
       <Chart
         definition={definition}
-        height={240}
+        height={compact ? 160 : 240}
         ariaLabel="Spending history"
         ariaDescription="Use arrow keys to explore spending and Enter to select a period. Missing imports are listed below."
         onSelect={(point) => {
           if (point) onSelect(point.datum.key);
         }}
       />
-      <div className="chart-period-list" aria-label="Select report period">
+      <div
+        className="chart-period-list"
+        style={{
+          gridTemplateColumns: `repeat(${series.length}, minmax(0, 1fr))`,
+          paddingLeft: compact ? 0 : undefined,
+        }}
+        aria-label="Select report period"
+      >
         {series.map((row) => (
           <button
             key={row.key}
@@ -248,5 +263,69 @@ export function CategoryDonut({
         <strong>{money(total)}</strong>
       </div>
     </div>
+  );
+}
+
+export function CategoryComparisonBars({
+  name,
+  selected,
+  compared,
+  maximum,
+  hasNegative,
+}: {
+  name: string;
+  selected: number;
+  compared?: number;
+  maximum: number;
+  hasNegative: boolean;
+}) {
+  const definition = useMemo(
+    () =>
+      defineChart({
+        marks: [
+          barX(
+            [
+              { label: "Selected", amount: selected },
+              ...(compared === undefined
+                ? []
+                : [{ label: "Compared", amount: compared }]),
+            ],
+            {
+              y: "label",
+              x: "amount",
+              x1: 0,
+              radius: 3,
+              fill: (row) =>
+                row.label === "Selected"
+                  ? "var(--primary)"
+                  : "var(--chart-compared)",
+            },
+          ),
+        ],
+        scales: {
+          x: {
+            scale: scaleLinear().domain([hasNegative ? -maximum : 0, maximum]),
+            axis: false,
+          },
+          y: { scale: () => scaleBand().padding(0.25), axis: false },
+        },
+        guides: false,
+        margin: 0,
+        theme: chartTheme,
+        keyboard: false,
+        tooltip: {
+          use: tooltip,
+          format: (point) =>
+            `${point.datum.label}: ${money(point.datum.amount)}`,
+        },
+      }),
+    [selected, compared, maximum, hasNegative],
+  );
+  return (
+    <Chart
+      definition={definition}
+      height={compared === undefined ? 16 : 28}
+      ariaLabel={`${name} spending bars`}
+    />
   );
 }

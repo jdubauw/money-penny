@@ -303,12 +303,14 @@ function Shell() {
           </Button>
         </div>
         <main className="workspace-main">
-          <header className="page-heading">
-            <h1>{page.title}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {page.description}
-            </p>
-          </header>
+          {path !== "/" && (
+            <header className="page-heading">
+              <h1>{page.title}</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {page.description}
+              </p>
+            </header>
+          )}
           {notice && (
             <div
               id="notice"
