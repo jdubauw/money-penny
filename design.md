@@ -13,3 +13,5 @@ Modern minimal spending workbench. All app routes share one visual system.
 - Copy: direct action labels, explanatory validation messages, actual imported data only.
 
 - Overview: compact period/account filters, optional inline comparison, one summary/history card, and a category comparison table with TanStack horizontal bars. Secondary details and donut sit in an expandable section. Monthly history covers twelve calendar months.
+
+- Imports: three-stage workflow indicator, keyboard-accessible file picker and drag-and-drop area, account-type segments, optional CSV mapping accordion, and grouped archive rows with actual upload dates and status badges.

@@ -32,6 +32,7 @@ export interface Transaction {
 }
 export interface ImportRecord {
   id: number;
+  created_at: string;
   account: string;
   filename: string;
   status: string;

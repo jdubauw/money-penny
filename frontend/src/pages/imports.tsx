@@ -1,4 +1,14 @@
 import { useRef, useState } from "react";
+import {
+  UploadCloud,
+  CreditCard,
+  Landmark,
+  Info,
+  ArrowRight,
+  Download,
+  ChevronRight,
+  FileText,
+} from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +52,7 @@ export function Imports() {
     [accountKind, setAccountKind] = useState("credit"),
     [files, setFiles] = useState<File[]>([]),
     [prefs, setPrefs] = useState<Preferences>(defaults);
+  const [dragging, setDragging] = useState(false);
   const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
   const [preview, setPreview] = useState<ImportRecord | null>(null),
     [selected, setSelected] = useState(new Set<number>()),
@@ -134,13 +145,49 @@ export function Imports() {
       setPrefs(defaults);
     }
   }
+  function chooseFiles(chosen: File[]) {
+    if (upload.isPending) return;
+    setFiles(chosen);
+    setUploadResults(chosen.map((file) => ({ file, status: "waiting" })));
+    upload.reset();
+  }
+  const step = preview
+    ? 3
+    : files.length > 0 || upload.isPending
+      ? 1
+      : imports.data?.some((item) =>
+            ["queued", "processing", "preview"].includes(item.status),
+          )
+        ? 2
+        : 1;
   const rows = preview?.preview?.rows || [],
     start = (page - 1) * 100;
   return (
     <section id="imports">
+      <header className="imports-heading">
+        <div>
+          <h1>Imports</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Upload an export, check the extraction, then approve the rows.
+          </p>
+        </div>
+        <ol className="import-steps" aria-label="Import workflow">
+          {["Upload export", "Check extraction", "Approve rows"].map(
+            (label, index) => (
+              <li
+                key={label}
+                aria-current={step === index + 1 ? "step" : undefined}
+              >
+                <span>{index + 1}</span>
+                {label}
+              </li>
+            ),
+          )}
+        </ol>
+      </header>
       <form
         id="upload-form"
-        className="max-w-4xl space-y-4"
+        className="import-upload-card"
         onSubmit={(e) => {
           e.preventDefault();
           upload.mutate({
@@ -151,65 +198,154 @@ export function Imports() {
           });
         }}
       >
-        <fieldset disabled={upload.isPending} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <fieldset disabled={upload.isPending} className="import-form-body">
+          <div className="import-upload-grid">
             <Field id="statement-file" label="Statement exports">
-              <Input
-                ref={fileInput}
-                id="statement-file"
-                type="file"
-                accept=".csv,.pdf"
-                multiple
-                onChange={(e) => {
-                  const selectedFiles = Array.from(e.target.files || []);
-                  setFiles(selectedFiles);
-                  setUploadResults(
-                    selectedFiles.map((file) => ({ file, status: "waiting" })),
-                  );
-                  upload.reset();
+              <div
+                className={`import-dropzone ${dragging ? "is-dragging" : ""}`}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  if (!upload.isPending) setDragging(true);
                 }}
-              />
-              <p className="text-sm text-muted-foreground">
-                Select multiple CSVs or supported Chase credit-card PDFs for
-                this account. Up to 25 MB per file.
-              </p>
-            </Field>
-            <Field id="account-name" label="Account name">
-              <Input
-                id="account-name"
-                list="account-list"
-                value={account}
-                onChange={(e) => accountChanged(e.target.value)}
-                required
-                maxLength={120}
-                placeholder="Chase •••• 2956"
-              />
-              <datalist id="account-list">
-                {bootstrap.accounts.map((a) => (
-                  <option key={a} value={a} />
-                ))}
-              </datalist>
-              <p className="text-sm text-muted-foreground">
-                Use the same account name for repeated uploads.
-              </p>
-            </Field>
-            <Field id="account-kind" label="Account type">
-              <NativeSelect
-                id="account-kind"
-                value={accountKind}
-                onChange={(e) => setAccountKind(e.target.value)}
+                onDragLeave={(event) => {
+                  if (
+                    !event.currentTarget.contains(event.relatedTarget as Node)
+                  )
+                    setDragging(false);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDragging(false);
+                  chooseFiles(Array.from(event.dataTransfer.files));
+                }}
               >
-                <NativeSelectOption value="credit">
-                  Credit card
-                </NativeSelectOption>
-                <NativeSelectOption value="checking">
-                  Checking / bank
-                </NativeSelectOption>
-              </NativeSelect>
+                <Input
+                  ref={fileInput}
+                  id="statement-file"
+                  type="file"
+                  accept=".csv,.pdf"
+                  multiple
+                  className="sr-only"
+                  onChange={(event) =>
+                    chooseFiles(Array.from(event.target.files || []))
+                  }
+                />
+                <span className="import-upload-icon" aria-hidden="true">
+                  <UploadCloud />
+                </span>
+                <p>
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto p-0"
+                    onClick={() => fileInput.current?.click()}
+                  >
+                    Choose files
+                  </Button>{" "}
+                  or drag them here
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  CSVs or supported Chase credit-card PDFs · up to 25 MB each
+                </p>
+                {files.length > 0 && (
+                  <p className="text-xs font-medium text-primary">
+                    {files.length} {files.length === 1 ? "file" : "files"}{" "}
+                    selected
+                  </p>
+                )}
+              </div>
             </Field>
+            <div className="space-y-5">
+              <Field id="account-name" label="Account name">
+                <Input
+                  id="account-name"
+                  list="account-list"
+                  value={account}
+                  onChange={(e) => accountChanged(e.target.value)}
+                  required
+                  maxLength={120}
+                  placeholder="Chase •••• 2956"
+                />
+                <datalist id="account-list">
+                  {bootstrap.accounts.map((a) => (
+                    <option key={a} value={a} />
+                  ))}
+                </datalist>
+                <p className="text-sm text-muted-foreground">
+                  Use the same account name for repeated uploads.
+                </p>
+              </Field>
+              <div className="space-y-2">
+                <Label id="account-kind-label">Account type</Label>
+                <div
+                  className="account-kind-options"
+                  role="radiogroup"
+                  aria-labelledby="account-kind-label"
+                  onKeyDown={(event) => {
+                    if (
+                      [
+                        "ArrowLeft",
+                        "ArrowRight",
+                        "ArrowUp",
+                        "ArrowDown",
+                        "Home",
+                        "End",
+                      ].includes(event.key)
+                    ) {
+                      event.preventDefault();
+                      const next =
+                        event.key === "Home"
+                          ? "credit"
+                          : event.key === "End"
+                            ? "checking"
+                            : accountKind === "credit"
+                              ? "checking"
+                              : "credit";
+                      setAccountKind(next);
+                      event.currentTarget
+                        .querySelector<HTMLButtonElement>(
+                          `[data-account-kind="${next}"]`,
+                        )
+                        ?.focus();
+                    }
+                  }}
+                >
+                  {[
+                    { value: "credit", label: "Credit card", icon: CreditCard },
+                    {
+                      value: "checking",
+                      label: "Checking / bank",
+                      icon: Landmark,
+                    },
+                  ].map((kind) => (
+                    <Button
+                      key={kind.value}
+                      type="button"
+                      variant="ghost"
+                      role="radio"
+                      data-account-kind={kind.value}
+                      tabIndex={accountKind === kind.value ? 0 : -1}
+                      aria-checked={accountKind === kind.value}
+                      onClick={() => setAccountKind(kind.value)}
+                    >
+                      <kind.icon aria-hidden="true" />
+                      <span>{kind.label}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-          <details className="border-y py-4">
-            <summary>CSV format and column mapping</summary>
+          <details className="import-format-options">
+            <summary>
+              <ChevronRight className="size-4" aria-hidden="true" />
+              <span>
+                CSV format and column mapping
+                <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                  Optional · set columns when automatic detection needs help
+                </span>
+              </span>
+            </summary>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <Field id="date-format" label="Date format">
                 <NativeSelect
@@ -277,7 +413,7 @@ export function Imports() {
         {uploadResults.length > 0 && (
           <div
             id="upload-results"
-            className="space-y-2"
+            className="import-results space-y-2"
             aria-live="polite"
             aria-busy={upload.isPending}
           >
@@ -316,21 +452,38 @@ export function Imports() {
             ))}
           </div>
         )}
-        <ErrorMessage error={upload.error} />
-        <Button disabled={upload.isPending}>
-          {upload.isPending
-            ? "Uploading…"
-            : files.length > 0 &&
-                uploadResults.some((r) => r.status === "failed")
-              ? "Retry failed uploads"
-              : "Upload & preview"}
-        </Button>
-        <p className="text-sm text-muted-foreground">
-          CSV preferences are saved in this browser for each account.
-        </p>
+        <div className="px-5">
+          <ErrorMessage error={upload.error} />
+        </div>
+        <footer className="import-form-footer">
+          <p className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Info className="size-3.5 shrink-0" aria-hidden="true" />
+            CSV preferences are saved in this browser for each account.
+          </p>
+          <Button
+            disabled={upload.isPending || !files.length || !account.trim()}
+          >
+            {upload.isPending
+              ? "Uploading…"
+              : files.length > 0 &&
+                  uploadResults.some((result) => result.status === "failed")
+                ? "Retry failed uploads"
+                : "Upload & preview"}
+            <ArrowRight aria-hidden="true" />
+          </Button>
+        </footer>
       </form>
-      <div className="mt-8 border-t pt-6">
-        <h2>Statement archive</h2>
+      <section className="import-archive" aria-label="Statement archive">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <h2>Statement archive</h2>
+          {imports.data && (
+            <p className="text-xs text-muted-foreground">
+              {imports.data.length} statements ·{" "}
+              {imports.data.reduce((total, item) => total + item.row_count, 0)}{" "}
+              rows extracted
+            </p>
+          )}
+        </header>
         <ErrorMessage error={open.error} />
         <div id="import-list">
           {imports.isPending ? (
@@ -338,17 +491,58 @@ export function Imports() {
           ) : imports.error ? (
             <ErrorMessage error={imports.error} />
           ) : imports.data.length ? (
-            imports.data.map((item) => (
-              <div key={item.id} className="space-y-3 border-b py-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <strong className="break-all">{item.filename}</strong>
-                    <p className="text-sm text-muted-foreground">
-                      {item.account} · {item.status} · {item.row_count}{" "}
-                      extracted rows
-                    </p>
+            imports.data.map((item) => {
+              const uploaded = new Date(item.created_at);
+              const validDate = Number.isFinite(uploaded.getTime());
+              return (
+                <div key={item.id} className="import-archive-row">
+                  <div
+                    className="import-date"
+                    aria-label={
+                      validDate
+                        ? `Uploaded ${uploaded.toLocaleDateString()}`
+                        : "Upload date unavailable"
+                    }
+                  >
+                    {validDate ? (
+                      <>
+                        <span>
+                          {uploaded.toLocaleDateString("en-US", {
+                            month: "short",
+                          })}
+                        </span>
+                        <strong>{uploaded.getDate()}</strong>
+                      </>
+                    ) : (
+                      <FileText aria-hidden="true" />
+                    )}
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <strong className="import-filename" title={item.filename}>
+                      {item.filename}
+                    </strong>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span>{item.account}</span>
+                      <span className={`import-status status-${item.status}`}>
+                        <i aria-hidden="true" />
+                        {(
+                          {
+                            committed: "Committed",
+                            preview: "Ready to review",
+                            queued: "Queued",
+                            processing: "Processing",
+                            failed: "Failed",
+                          } as Record<string, string>
+                        )[item.status] || item.status}
+                      </span>
+                      <span>
+                        {item.row_count} extracted{" "}
+                        {item.row_count === 1 ? "row" : "rows"}
+                      </span>
+                    </div>
+                    <ErrorMessage error={item.error} />
+                  </div>
+                  <div className="import-archive-actions">
                     {item.status === "preview" && (
                       <Button
                         disabled={open.isPending}
@@ -357,19 +551,22 @@ export function Imports() {
                         Review import
                       </Button>
                     )}
-                    <a href={`/api/imports/${item.id}/file`}>Original file</a>
+                    <a href={`/api/imports/${item.id}/file`}>
+                      <Download className="size-3.5" aria-hidden="true" />
+                      Original file
+                    </a>
                   </div>
                 </div>
-                <ErrorMessage error={item.error} />
-              </div>
-            ))
+              );
+            })
           ) : (
-            <p className="text-muted-foreground">
-              Your uploaded statements will appear here.
-            </p>
+            <div className="import-empty">
+              <FileText className="mx-auto mb-3 size-6" aria-hidden="true" />
+              <p>Your uploaded statements will appear here.</p>
+            </div>
           )}
         </div>
-      </div>
+      </section>
       <Modal
         open={!!preview}
         onOpenChange={(v) => {

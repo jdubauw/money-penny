@@ -1278,3 +1278,315 @@
 .dashboard-compare-toggle [role="checkbox"][data-state="checked"]::after {
   left: 16px;
 }
+/* Imports · reference-led upload and archive flow · critique: P4 H5 E4 S5 R5 V4 */
+:root {
+  --import-success: var(--change-lower);
+  --import-success-bg: var(--change-lower-bg);
+}
+.imports-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+.imports-heading h1 {
+  font-size: 28px;
+}
+.import-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.import-steps li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  padding: 4px 8px;
+  border-radius: 24px;
+  min-height: 28px;
+}
+.import-steps li > span {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--muted);
+  font-size: 10px;
+}
+.import-steps li[aria-current="step"] {
+  color: var(--primary);
+  background: var(--accent);
+  border-color: var(--primary);
+}
+.import-steps li[aria-current="step"] > span {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+#upload-form.import-upload-card {
+  padding: 0;
+  overflow: clip;
+}
+.import-form-body {
+  padding: 24px;
+}
+.import-upload-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 28px;
+}
+.import-dropzone {
+  position: relative;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  border: 1px dashed var(--input);
+  border-radius: 10px;
+  background: var(--background);
+  text-align: center;
+  font-size: 13px;
+}
+.import-dropzone.is-dragging {
+  background: var(--accent);
+  border-color: var(--primary);
+}
+.import-upload-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: var(--card);
+  color: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+.import-upload-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.import-dropzone input:focus-visible ~ .import-upload-icon {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+.account-kind-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 4px;
+  gap: 4px;
+  background: var(--muted);
+  border-radius: 10px;
+}
+.account-kind-options button {
+  flex-direction: column;
+  gap: 6px;
+  height: 64px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  padding-inline: 8px;
+}
+.account-kind-options button[aria-checked="true"] {
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: var(--surface-shadow);
+}
+.account-kind-options button[aria-checked="true"] svg {
+  color: var(--primary);
+}
+.import-format-options {
+  margin-top: 24px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  font-size: 13px;
+}
+.import-format-options summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-block: 8px;
+  font-weight: 500;
+}
+.import-format-options[open] summary > svg {
+  transform: rotate(90deg);
+}
+.import-format-options[open] {
+  padding-bottom: 16px;
+}
+.import-results {
+  padding: 0 24px 16px;
+}
+.import-form-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--background);
+}
+.import-archive {
+  margin-top: 32px;
+}
+.import-archive > header {
+  margin-bottom: 16px;
+}
+.import-archive h2 {
+  font-size: 16px;
+  margin-bottom: 0;
+}
+.import-archive #import-list {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  overflow: clip;
+}
+.import-archive #import-list > .import-archive-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
+.import-archive #import-list > .import-archive-row:last-child {
+  border-bottom: 0;
+}
+.import-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 52px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+}
+.import-date span {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.import-date strong {
+  font-size: 16px;
+}
+.import-filename {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.import-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 20px;
+  padding: 3px 7px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.import-status i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.import-status.status-committed {
+  background: var(--import-success-bg);
+  color: var(--import-success);
+}
+.import-status.status-preview,
+.import-status.status-processing {
+  background: var(--accent);
+  color: var(--primary);
+}
+.import-status.status-failed {
+  color: var(--destructive);
+}
+.import-archive-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.import-archive-actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+}
+.import-archive-actions a:hover {
+  color: var(--primary);
+}
+.import-empty {
+  padding: 36px 20px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+@media (max-width: 45rem) {
+  .imports-heading {
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .import-steps {
+    gap: 4px;
+    font-size: 9px;
+  }
+  .import-steps li {
+    padding-inline: 5px;
+  }
+  .import-upload-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .import-form-body {
+    padding: 16px;
+  }
+  .import-dropzone {
+    min-height: 180px;
+    padding: 16px;
+  }
+  .import-form-footer {
+    padding: 16px;
+  }
+  .import-form-footer > button {
+    width: 100%;
+  }
+  .import-results {
+    padding: 0 16px 16px;
+  }
+  .import-archive #import-list > .import-archive-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    padding: 16px;
+    gap: 12px;
+  }
+  .import-archive-actions {
+    margin-left: 56px;
+    width: calc(100% - 56px);
+  }
+}
+.import-dropzone [data-slot="button"] {
+  min-height: 44px;
+}
