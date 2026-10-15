@@ -274,7 +274,7 @@ export function Transactions() {
               </div>
             </>
           ) : (
-            <p className="py-8 text-muted-foreground">
+            <p className="px-4 py-8 text-sm text-muted-foreground min-[721px]:px-5">
               No transactions match your filters.
             </p>
           )}

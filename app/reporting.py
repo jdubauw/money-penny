@@ -128,6 +128,16 @@ def vendor_report(rows, split=False):
     return sorted(result, key=lambda r: (-r["spend_cents"], r["vendor"], r["account"], r["category"]))
 
 
+# Match complete service identities, never general retailer names such as Amazon.
+SUBSCRIPTION_SERVICES = {
+    "youtube tv", "youtube premium", "netflix", "hulu", "spotify", "disney+", "disney plus",
+    "apple tv+", "apple tv plus", "paramount+", "paramount plus", "peacock", "peacock tv",
+    "amazon prime", "amazon web services", "google one", "google nest", "google fi",
+    "cloudflare", "ixl", "flosports", "proton", "whoop", "strava",
+}
+ANNUAL_MEMBERSHIPS = {"whoop", "strava"}
+
+
 def recurring_monthly_cost(daily):
     """Find a stable billing sequence across three or more consecutive months.
 
@@ -183,15 +193,19 @@ def savings_report(rows, plans, targets):
     for vendor in sorted(set(groups) | set(plans)):
         members = groups[vendor]
         purchases = sorted([r for r in members if r.kind == "purchase" and r.amount_cents > 0], key=lambda r: r.date)
+        plan = plans.get(vendor)
+        identity = " ".join(vendor.casefold().split())
+        explicitly_categorized = bool(purchases) and all(r.category.casefold() == "subscriptions" for r in purchases)
+        if plan is None and identity not in SUBSCRIPTION_SERVICES and not explicitly_categorized:
+            continue
         daily = defaultdict(int)
         for row in purchases:
             daily[row.date] += row.amount_cents
         days = sorted(daily)
         monthly_cost = recurring_monthly_cost(daily)
-        plan = plans.get(vendor)
         # These membership merchants can have only one annual charge in imported history.
         # Treat them as suggestions, not confirmed subscriptions; saved plans win.
-        annual_membership = vendor.strip().casefold() in {"whoop", "strava"} and bool(purchases) and monthly_cost is None
+        annual_membership = identity in ANNUAL_MEMBERSHIPS and bool(purchases) and monthly_cost is None
         if plan is None and monthly_cost is None and not annual_membership:
             continue
         plan = plan or {}

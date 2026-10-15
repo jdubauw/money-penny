@@ -94,7 +94,7 @@ def test_period_api_account_scope_and_spending_drilldown(client):
     assert client.get("/api/reports/spending?view=quarterly&period=2026-Q9").status_code == 422
 
 
-def report_row(day, amount, vendor="Stream", category="Entertainment", kind="purchase", account="Card A"):
+def report_row(day, amount, vendor="Spotify", category="Entertainment", kind="purchase", account="Card A"):
     row = tx(day, amount, category, kind)
     row.vendor, row.account = vendor, account
     return row
@@ -120,7 +120,7 @@ def test_savings_suggestions_confirmation_and_nonoverlapping_targets():
     assert len(result["services"]) == 1
     assert result["services"][0]["annual_cents"] == 12000
     assert result["services"][0]["savings_cents"] == 0
-    plan = {"Stream": {"confirmed": True, "decision": "cancel", "cadence": "monthly", "cost_cents": 1000}}
+    plan = {"Spotify": {"confirmed": True, "decision": "cancel", "cadence": "monthly", "cost_cents": 1000}}
     confirmed = savings_report(rows, plan, {"Entertainment": 10, "Food": 10})
     assert confirmed["total_savings_cents"] == 13200
     assert next(t for t in confirmed["targets"] if t["category"] == "Entertainment")["savings_cents"] == 0
@@ -277,3 +277,42 @@ def test_annual_membership_latest_charge_monthly_evidence_and_saved_override():
     assert saved["annual_cents"] == 30000 and saved["cadence"] == "monthly" and saved["confirmed"]
     assert savings_report([report_row("2026-02-17",-39835,vendor="Whoop",kind="refund")],{}, {})["services"] == []
     assert savings_report([report_row("2026-02-17",1000,vendor="Whoop Store")],{}, {})["services"] == []
+
+
+@pytest.mark.parametrize("vendor,category", [
+    ("10223 Cava","Food"),("Amazon","Shopping"),("7753","Shopping"),
+    ("Costco","Food"),("Chick-fil-A","Food"),("Chewy","Pets"),
+    ("Birons Youth Sports","Kids & Family"),("Bcrn Aesthetics","Health"),
+    ("Cavatore Italian Resta","Food"),("Cohn Corner Store","Food"),
+    ("Amazon Prime Store","Shopping"),
+])
+def test_repeated_everyday_purchases_are_not_subscriptions(vendor, category):
+    from app.reporting import savings_report
+    rows = [report_row(f"2026-{month:02d}-05",2500,vendor=vendor,category=category) for month in (1,2,3,4)]
+    assert savings_report(rows,{}, {})["services"] == []
+
+
+def test_subscription_category_and_saved_services_are_explicit_opt_ins():
+    from app.reporting import savings_report
+    rows = [report_row(f"2026-{month:02d}-05",2500,vendor="Custom Fitness Club",category="Subscriptions") for month in (1,2,3)]
+    assert len(savings_report(rows,{}, {})["services"]) == 1
+    rows[0].category = "Shopping"
+    assert savings_report(rows,{}, {})["services"] == []
+    plan = {"Custom Fitness Club":{"cadence":"monthly","cost_cents":2500,"confirmed":True,"decision":"keep"}}
+    assert savings_report(rows,plan,{})["services"][0]["confirmed"]
+    assert len(savings_report([],plan,{})["services"]) == 1
+
+
+def test_general_amazon_is_not_qualified_by_one_subscription_categorized_charge():
+    from app.reporting import savings_report
+    rows = [report_row(f"2026-{month:02d}-05",2500,vendor="Amazon",category="Shopping") for month in (1,2,3)]
+    rows.append(report_row("2026-01-20",15000,vendor="Amazon",category="Subscriptions"))
+    assert savings_report(rows,{}, {})["services"] == []
+
+
+@pytest.mark.parametrize("vendor", ["Netflix","YouTube TV","Amazon Web Services","Google Fi","Amazon Prime"])
+def test_recognized_services_still_require_recurring_evidence(vendor):
+    from app.reporting import savings_report
+    rows = [report_row(f"2026-{month:02d}-05",2500,vendor=vendor,category="Entertainment") for month in (1,2,3)]
+    assert len(savings_report(rows,{}, {})["services"]) == 1
+    assert savings_report(rows[:1],{}, {})["services"] == []

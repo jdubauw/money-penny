@@ -53,6 +53,8 @@ const assert = require('node:assert/strict');
   assert.equal(await page.locator('.dashboard-category-table tbody tr').count(),8);
   assert.equal(await page.locator('.report-donut path[data-ts-key^="categories:"]').count(),8);
   assert.equal(await page.locator('[data-series-period]').count(),12);
+  assert.equal(await page.getByRole('checkbox',{name:'Compare periods'}).isChecked(),false);
+  await page.getByRole('checkbox',{name:'Compare periods'}).check();
   await page.locator('[data-comparison-change]').getByText(/Less than September/).waitFor();
   const shoppingWidth=Number(await page.locator('[data-comparison-category="Shopping"] rect[fill="var(--primary)"]').getAttribute('width'));
   const healthWidth=Number(await page.locator('[data-comparison-category="Health"] rect[fill="var(--primary)"]').getAttribute('width'));

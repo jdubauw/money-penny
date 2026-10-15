@@ -670,13 +670,14 @@ export function SavingsOpportunities() {
             <div>
               <h2 className="text-xl font-semibold">Subscriptions</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Suggestions look for similar billing totals across at least
-                three consecutive months, 20–40 days apart. Same-day charges are
-                combined; occasional extra charges do not interrupt the pattern.
-                Recognized annual memberships also appear for review. Confirm
-                the cadence and price before counting savings. Saved services
-                remain visible across filters. Other annual services can be
-                added manually. No services are canceled by this app.
+                Suggestions require a recognized subscription service or
+                purchases explicitly categorized as Subscriptions, plus a
+                monthly billing pattern. Repeated shopping and dining purchases
+                do not qualify on timing alone. Recognized annual memberships
+                also appear for review. Confirm the cadence and price before
+                counting savings. Saved services remain visible across filters;
+                add other services manually. No services are canceled by this
+                app.
               </p>
             </div>
             <DataTable

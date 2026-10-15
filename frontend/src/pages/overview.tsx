@@ -79,7 +79,7 @@ export function Overview() {
       apply,
     } = useLedger(),
     navigate = useNavigate();
-  const [compare, setCompare] = useState(true),
+  const [compare, setCompare] = useState(false),
     [comparisonChoice, setComparisonChoice] = useState<{
       anchor: string;
       period: string;
