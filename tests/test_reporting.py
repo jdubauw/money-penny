@@ -196,3 +196,84 @@ def test_transaction_sorting_happens_before_pagination_and_preserves_filters(cli
     assert by_name["rows"][0]["vendor"] == "Vendor 000"
     assert client.get("/api/transactions?sort=unknown").status_code == 422
     assert client.get("/api/transactions?direction=unknown").status_code == 422
+
+
+def test_subscription_split_billing_with_incidental_charge():
+    from app.reporting import savings_report
+    rows = [report_row("2026-01-02", 309, vendor="YouTube TV"),
+            report_row("2026-01-10", 10065, vendor="YouTube TV"),
+            report_row("2026-02-10", 10065, vendor="YouTube TV")]
+    for month in range(3, 8):
+        rows.extend([report_row(f"2026-{month:02d}-10", amount, vendor="YouTube TV") for amount in (8984,1081)])
+    report = savings_report(rows, {}, {})
+    service = report["services"][0]
+    assert service["vendor"] == "YouTube TV"
+    assert service["cost_cents"] == 10065 and service["annual_cents"] == 120780
+    assert service["spend_cents"] == sum(r.amount_cents for r in rows)
+    assert service["months_charged"] == 7 and service["last_charge"] == "2026-07-10"
+    assert not service["confirmed"] and service["savings_cents"] == 0
+    saved = {"YouTube TV": {"cost_cents": 11000, "cadence": "monthly", "confirmed": True, "decision": "cancel"}}
+    assert savings_report(rows, saved, {})["services"][0]["annual_cents"] == 132000
+
+
+def test_subscription_pattern_skips_extra_charges_and_uses_monthly_total():
+    from app.reporting import savings_report
+    rows = [report_row(f"2026-{month:02d}-{day:02d}", amount)
+            for month in (1,2,3,4) for day, amount in [(5,900),(5,100)]]
+    rows.extend([report_row("2026-01-12",50),report_row("2026-03-12",50)])
+    result = savings_report(rows, {}, {})
+    assert len(result["services"]) == 1
+    assert result["services"][0]["cost_cents"] == 1000
+    assert result["services"][0]["spend_cents"] == 4100
+
+
+@pytest.mark.parametrize("charges", [
+    [("2026-01-01",1000),("2026-01-23",1000),("2026-02-15",1000)],
+    [("2026-01-05",1000),("2026-02-05",1500),("2026-03-05",2000)],
+    [("2026-01-05",1000),("2026-03-05",1000),("2026-05-05",1000)],
+    [("2026-01-05",500),("2026-01-05",500),("2026-02-05",1000)],
+])
+def test_subscription_detector_rejects_irregular_or_insufficient_history(charges):
+    from app.reporting import savings_report
+    assert savings_report([report_row(day, amount) for day,amount in charges], {}, {})["services"] == []
+
+
+def test_subscription_pattern_handles_year_rollover_and_refunds():
+    from app.reporting import savings_report
+    rows = [report_row(day, 1000) for day in ("2025-12-20","2026-01-20","2026-02-20")]
+    rows.append(report_row("2026-02-21", -500, kind="refund"))
+    result = savings_report(rows, {}, {})["services"][0]
+    assert result["cost_cents"] == 1000 and result["spend_cents"] == 2500
+
+
+def test_subscription_pattern_prefers_main_bill_to_smaller_recurring_fee():
+    from app.reporting import savings_report
+    rows = [report_row(f"2026-{month:02d}-{day:02d}", amount)
+            for month in (1,2,3,4) for day,amount in [(5,1000),(12,50)]]
+    service = savings_report(rows, {}, {})["services"][0]
+    assert service["cost_cents"] == 1000
+    assert service["spend_cents"] == 4200
+
+
+@pytest.mark.parametrize("vendor,amount", [("Whoop",39835),("Strava",16236),("WHOOP",39835)])
+def test_annual_fitness_memberships_are_subscription_suggestions(vendor, amount):
+    from app.reporting import savings_report
+    rows = [report_row("2026-02-17", amount, vendor=vendor, category="Health")]
+    service = savings_report(rows, {}, {})["services"][0]
+    assert service["vendor"] == vendor and service["cadence"] == "annual"
+    assert service["annual_cents"] == amount and service["cost_cents"] == amount
+    assert service["decision"] == "review" and not service["confirmed"]
+    assert service["savings_cents"] == 0
+
+
+def test_annual_membership_latest_charge_monthly_evidence_and_saved_override():
+    from app.reporting import savings_report
+    rows = [report_row("2025-02-17",30000,vendor="Whoop"),report_row("2026-02-17",39835,vendor="Whoop")]
+    assert savings_report(rows,{}, {})["services"][0]["annual_cents"] == 39835
+    monthly = [report_row(f"2026-{m:02d}-05",3000,vendor="Whoop") for m in (1,2,3)]
+    assert savings_report(monthly,{}, {})["services"][0]["cadence"] == "monthly"
+    plan = {"Whoop":{"cadence":"monthly","cost_cents":2500,"confirmed":True,"decision":"keep"}}
+    saved = savings_report(rows,plan,{})["services"][0]
+    assert saved["annual_cents"] == 30000 and saved["cadence"] == "monthly" and saved["confirmed"]
+    assert savings_report([report_row("2026-02-17",-39835,vendor="Whoop",kind="refund")],{}, {})["services"] == []
+    assert savings_report([report_row("2026-02-17",1000,vendor="Whoop Store")],{}, {})["services"] == []

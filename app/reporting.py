@@ -128,6 +128,52 @@ def vendor_report(rows, split=False):
     return sorted(result, key=lambda r: (-r["spend_cents"], r["vendor"], r["account"], r["category"]))
 
 
+def recurring_monthly_cost(daily):
+    """Find a stable billing sequence across three or more consecutive months.
+
+    Same-day purchases are already combined. Other charge dates may be incidental;
+    they must not interrupt an otherwise recurring sequence or set its price.
+    """
+    from statistics import median
+
+    charges = sorted(daily.items())
+    def rank(sequence):
+        # Prefer the longest pattern, then the most recent billing month.
+        # Within that month, a larger recurring bill wins over incidental fees.
+        last = sequence[-1][0]
+        return len(sequence), last.year, last.month, sum(amount for _, amount in sequence)
+
+    best = []
+    for low in sorted(set(daily.values())):
+        candidates = [(day, amount) for day, amount in charges if low <= amount <= low * 1.25]
+        if len(candidates) < 3:
+            continue
+        lengths, previous = [], []
+        for i, (day, amount) in enumerate(candidates):
+            length, parent = 1, None
+            for j in range(i - 1, -1, -1):
+                prior = candidates[j][0]
+                gap = (day - prior).days
+                if gap > 40:
+                    break
+                consecutive_month = (day.year * 12 + day.month) - (prior.year * 12 + prior.month) == 1
+                if 20 <= gap <= 40 and consecutive_month and lengths[j] + 1 > length:
+                    length, parent = lengths[j] + 1, j
+            lengths.append(length)
+            previous.append(parent)
+        last = max(range(len(candidates)), key=lambda i: (lengths[i], candidates[i][0]))
+        if lengths[last] < 3:
+            continue
+        sequence = []
+        while last is not None:
+            sequence.append(candidates[last])
+            last = previous[last]
+        sequence.reverse()
+        if not best or rank(sequence) > rank(best):
+            best = sequence
+    return round(median(amount for _, amount in best)) if best else None
+
+
 def savings_report(rows, plans, targets):
     from statistics import median
     groups = defaultdict(list)
@@ -137,16 +183,21 @@ def savings_report(rows, plans, targets):
     for vendor in sorted(set(groups) | set(plans)):
         members = groups[vendor]
         purchases = sorted([r for r in members if r.kind == "purchase" and r.amount_cents > 0], key=lambda r: r.date)
-        days = sorted({r.date for r in purchases})
-        gaps = [(b - a).days for a, b in zip(days, days[1:])]
-        monthly = len(days) >= 3 and gaps and all(20 <= gap <= 40 for gap in gaps)
-        stable = bool(purchases) and max(r.amount_cents for r in purchases) <= min(r.amount_cents for r in purchases) * 1.25
+        daily = defaultdict(int)
+        for row in purchases:
+            daily[row.date] += row.amount_cents
+        days = sorted(daily)
+        monthly_cost = recurring_monthly_cost(daily)
         plan = plans.get(vendor)
-        if plan is None and not (monthly and stable):
+        # These membership merchants can have only one annual charge in imported history.
+        # Treat them as suggestions, not confirmed subscriptions; saved plans win.
+        annual_membership = vendor.strip().casefold() in {"whoop", "strava"} and bool(purchases) and monthly_cost is None
+        if plan is None and monthly_cost is None and not annual_membership:
             continue
         plan = plan or {}
-        cadence = plan.get("cadence", "monthly")
-        cost = plan.get("cost_cents", round(median(r.amount_cents for r in purchases)) if purchases else 0)
+        cadence = plan.get("cadence", "annual" if annual_membership else "monthly")
+        observed_cost = daily[days[-1]] if annual_membership else monthly_cost if monthly_cost is not None else round(median(daily.values())) if daily else 0
+        cost = plan.get("cost_cents", observed_cost)
         confirmed = plan.get("confirmed", False)
         annual = cost * (12 if cadence == "monthly" else 1)
         services.append(dict(vendor=vendor, category=plan.get("category") or (purchases[-1].category if purchases else ""),
