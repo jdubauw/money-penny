@@ -1,3 +1,4 @@
+import { SortHeader, type SortState } from "./data-table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,8 @@ import {
 } from "@/components/ui/table";
 import { money } from "@/lib/api";
 import type { Transaction } from "@/lib/types";
+export type TransactionSortKey =
+  "date" | "vendor" | "account" | "category" | "amount_cents";
 export function TransactionTable({
   rows,
   selected,
@@ -20,6 +23,8 @@ export function TransactionTable({
   preview = false,
   offset = 0,
   account,
+  sort,
+  onSort,
 }: {
   rows: Transaction[];
   selected: Set<number>;
@@ -29,12 +34,14 @@ export function TransactionTable({
   preview?: boolean;
   offset?: number;
   account?: string;
+  sort?: SortState<TransactionSortKey>;
+  onSort?: (key: TransactionSortKey) => void;
 }) {
   const selectedOnPage = rows.filter((r, i) =>
     selected.has(preview ? offset + i : r.id),
   ).length;
   return (
-    <Table className="ledger-table">
+    <Table className="ledger-table data-table">
       <TableHeader>
         <TableRow>
           <TableHead>
@@ -58,15 +65,28 @@ export function TransactionTable({
               "Select"
             )}
           </TableHead>
-          {[
-            "Date",
-            "Merchant / description",
-            "Account",
-            "Category / type",
-            "Amount",
-          ].map((h) => (
-            <TableHead key={h}>{h}</TableHead>
-          ))}
+          {(
+            [
+              ["date", "Date"],
+              ["vendor", "Merchant / description"],
+              ["account", "Account"],
+              ["category", "Category / type"],
+              ["amount_cents", "Amount"],
+            ] as [TransactionSortKey, string][]
+          ).map(([key, label]) =>
+            sort && onSort ? (
+              <SortHeader
+                key={key}
+                column={key}
+                label={label}
+                sort={sort}
+                onSort={onSort}
+                numeric={key === "amount_cents"}
+              />
+            ) : (
+              <TableHead key={key}>{label}</TableHead>
+            ),
+          )}
         </TableRow>
       </TableHeader>
       <TableBody>

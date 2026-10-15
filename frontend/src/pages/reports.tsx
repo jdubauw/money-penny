@@ -1,4 +1,16 @@
-import { useState } from "react";
+import {
+  FilterPanel,
+  FilterFields,
+  FilterFooter,
+} from "@/components/filter-panel";
+import {
+  DataTable,
+  useTableSort,
+  type DataColumn,
+} from "@/components/data-table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -52,70 +64,33 @@ type Savings = {
 };
 
 function useReportFilters() {
-  const [filters, setFilters] = useState({
-    start: "",
-    end: "",
-    account: "",
-    category: "",
-    search: "",
-  });
-  const { bootstrap } = useLedger();
-  const field = (key: keyof typeof filters) => (v: string) =>
-    setFilters((f) => ({ ...f, [key]: v }));
-  const controls = (
-    <div className="report-filters">
-      <TextField
-        id="report-start"
-        label="From"
-        type="date"
-        value={filters.start}
-        onChange={field("start")}
-      />
-      <TextField
-        id="report-end"
-        label="Through"
-        type="date"
-        value={filters.end}
-        onChange={field("end")}
-      />
-      <SelectField
-        id="report-account"
-        label="Account"
-        values={bootstrap.accounts}
-        empty="All accounts"
-        value={filters.account}
-        onChange={field("account")}
-      />
-      <SelectField
-        id="report-category"
-        label="Category"
-        values={bootstrap.categories}
-        empty="All categories"
-        value={filters.category}
-        onChange={field("category")}
-      />
-      <TextField
-        id="report-search"
-        label="Vendor or description"
-        type="search"
-        value={filters.search}
-        onChange={field("search")}
-      />
-      <Button
-        variant="outline"
-        onClick={() =>
-          setFilters({
-            start: "",
-            end: "",
-            account: "",
-            category: "",
-            search: "",
-          })
-        }
+  const empty = { start: "", end: "", account: "", category: "", search: "" };
+  const [filters, setFilters] = useState(empty),
+    [draft, setDraft] = useState(empty);
+  const controls = (status?: string, extra?: ReactNode) => (
+    <FilterPanel label="Filter report" id="report-filter-content">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          setFilters({ ...draft });
+        }}
       >
-        Reset filters
-      </Button>
-    </div>
+        <FilterFields
+          value={draft}
+          onChange={(key, value) => setDraft((f) => ({ ...f, [key]: value }))}
+          prefix="report"
+        />
+        <FilterFooter
+          onReset={() => {
+            setDraft(empty);
+            setFilters(empty);
+          }}
+          status={status}
+        >
+          {extra}
+        </FilterFooter>
+      </form>
+    </FilterPanel>
   );
   return { filters, controls };
 }
@@ -148,9 +123,20 @@ export function VendorAnalysis() {
   const { filters, controls } = useReportFilters(),
     { apply } = useLedger(),
     navigate = useNavigate();
-  const [split, setSplit] = useState(false),
-    [sort, setSort] = useState<keyof Vendor>("spend_cents"),
-    [ascending, setAscending] = useState(false);
+  const [split, setSplit] = useState(false);
+  const vendorSort = useTableSort<Vendor, keyof Vendor>(
+    { key: "spend_cents", direction: "desc" },
+    {
+      vendor: (r) => r.vendor,
+      category: (r) => r.category,
+      account: (r) => r.account || r.accounts.join(", "),
+      accounts: (r) => r.accounts.join(", "),
+      spend_cents: (r) => r.spend_cents,
+      count: (r) => r.count,
+      average_cents: (r) => r.average_cents,
+      largest_cents: (r) => r.largest_cents,
+    },
+  );
   const query = useQuery({
     queryKey: ["reports", "vendors", filters, split],
     queryFn: ({ signal }) =>
@@ -160,20 +146,7 @@ export function VendorAnalysis() {
         { signal },
       ),
   });
-  const maximum = Math.max(1, ...(query.data || []).map((v) => v.spend_cents));
-  const rows = [...(query.data || [])].sort((a, b) => {
-    const x = a[sort],
-      y = b[sort];
-    return (
-      (typeof x === "number" && typeof y === "number"
-        ? x - y
-        : String(x ?? "").localeCompare(String(y ?? ""))) * (ascending ? 1 : -1)
-    );
-  });
-  function order(key: keyof Vendor) {
-    setSort(key);
-    setAscending(sort === key ? !ascending : key === "vendor");
-  }
+  const rows = vendorSort.sorted(query.data || []);
   const headings: [keyof Vendor, string][] = [
     ["vendor", "Vendor"],
     ["category", "Category"],
@@ -214,104 +187,71 @@ export function VendorAnalysis() {
           Export CSV
         </Button>
       </div>
-      {controls}
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={split}
-          onChange={(e) => setSplit(e.target.checked)}
-        />
-        Break down by account and category
-      </label>
+      {controls(
+        query.data
+          ? `${rows.length} vendor rows · ${money(rows.reduce((s, r) => s + r.spend_cents, 0))} net spend`
+          : "Loading vendors…",
+        <Label>
+          <Checkbox
+            checked={split}
+            onCheckedChange={(v) => setSplit(v === true)}
+          />
+          Break down by account and category
+        </Label>,
+      )}
       <ErrorMessage error={query.error} />
       {query.isPending ? (
         <Loading />
       ) : (
         query.data && (
           <>
-            <p className="text-sm text-muted-foreground">
-              {rows.length} vendor rows ·{" "}
-              {money(rows.reduce((s, r) => s + r.spend_cents, 0))} net spend
-            </p>
-            <div className="report-table">
-              <table>
-                <thead>
-                  <tr>
-                    {headings.map(([key, title]) => (
-                      <th
-                        key={key}
-                        aria-sort={
-                          sort === key
-                            ? ascending
-                              ? "ascending"
-                              : "descending"
-                            : "none"
-                        }
-                      >
-                        <button onClick={() => order(key)}>
-                          {title} {sort === key ? (ascending ? "↑" : "↓") : "↕"}
-                        </button>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r, i) => (
-                    <tr key={i}>
-                      <td>
-                        <button
-                          className="text-primary underline-offset-4 hover:underline"
-                          onClick={() => {
-                            apply({
-                              ...filters,
-                              vendor: r.vendor,
-                              spending: "true",
-                              ...(split
-                                ? { account: r.account, category: r.category }
-                                : {}),
-                            });
-                            void navigate({ to: "/transactions" });
-                          }}
-                        >
-                          {r.vendor}
-                        </button>
-                      </td>
-                      <td>{r.category}</td>
-                      <td>{r.account || r.accounts.join(", ")}</td>
-                      <td>
-                        <div className="relative">
-                          <span
-                            className="absolute inset-y-0 left-0 bg-primary/10"
-                            style={{
-                              width: `${(Math.max(0, r.spend_cents) / maximum) * 100}%`,
-                            }}
-                          />
-                          <span className="relative">
-                            {money(r.spend_cents)}
-                          </span>
-                        </div>
-                      </td>
-                      <td>{r.count}</td>
-                      <td>
-                        {r.average_cents === null
-                          ? "—"
-                          : money(r.average_cents)}
-                      </td>
-                      <td>
-                        {r.largest_cents === null
-                          ? "—"
-                          : money(r.largest_cents)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {!rows.length && (
-                <p className="p-6 text-muted-foreground">
-                  No spending transactions match these filters.
-                </p>
-              )}
-            </div>
+            <DataTable
+              rows={rows}
+              columns={headings.map(([key, label]) => ({
+                key,
+                label,
+                numeric: [
+                  "spend_cents",
+                  "count",
+                  "average_cents",
+                  "largest_cents",
+                ].includes(key),
+                render: (r: Vendor) =>
+                  key === "vendor" ? (
+                    <button
+                      type="button"
+                      className="data-drill-link"
+                      onClick={() => {
+                        apply({
+                          ...filters,
+                          vendor: r.vendor,
+                          spending: "true",
+                          ...(split
+                            ? { account: r.account, category: r.category }
+                            : {}),
+                        });
+                        void navigate({ to: "/transactions" });
+                      }}
+                    >
+                      {r.vendor}
+                    </button>
+                  ) : key === "account" ? (
+                    r.account || r.accounts.join(", ")
+                  ) : key === "category" ? (
+                    r.category
+                  ) : key === "count" ? (
+                    r.count
+                  ) : r[key] === null ? (
+                    "—"
+                  ) : (
+                    money(r[key] as number)
+                  ),
+              }))}
+              rowKey={(r) => JSON.stringify([r.vendor, r.account, r.category])}
+              sort={vendorSort.sort}
+              onSort={vendorSort.onSort}
+              empty="No spending transactions match these filters."
+            />
           </>
         )
       )}
@@ -508,7 +448,131 @@ export function SavingsOpportunities() {
       }),
     onSuccess: refresh,
   });
+  const serviceSort = useTableSort<
+    Service,
+    | "vendor"
+    | "category"
+    | "cadence"
+    | "decision"
+    | "spend_cents"
+    | "months_charged"
+    | "last_charge"
+    | "annual_cents"
+    | "savings_cents"
+  >(
+    { key: "vendor", direction: "asc" },
+    {
+      vendor: (r) => r.vendor,
+      category: (r) => r.category,
+      cadence: (r) => r.cadence,
+      decision: (r) => r.decision,
+      spend_cents: (r) => r.spend_cents,
+      months_charged: (r) => r.months_charged,
+      last_charge: (r) => r.last_charge,
+      annual_cents: (r) => r.annual_cents,
+      savings_cents: (r) => r.savings_cents,
+    },
+  );
+  const targetSort = useTableSort<Target, keyof Target>(
+    { key: "category", direction: "asc" },
+    {
+      category: (r) => r.category,
+      spend_cents: (r) => r.spend_cents,
+      annual_cents: (r) => r.annual_cents,
+      percent: (r) => r.percent,
+      savings_cents: (r) => r.savings_cents,
+    },
+  );
   const data = query.data;
+  const serviceColumns: DataColumn<Service, typeof serviceSort.sort.key>[] = [
+    {
+      key: "vendor",
+      label: "Service",
+      render: (s) => (
+        <>
+          <button
+            type="button"
+            className="data-drill-link"
+            aria-label={`View transactions for ${s.vendor}`}
+            onClick={() => {
+              apply({ ...filters, vendor: s.vendor, spending: "true" });
+              void navigate({ to: "/transactions" });
+            }}
+          >
+            {s.vendor}
+          </button>
+          <small className="block text-muted-foreground">
+            {s.confirmed ? "Confirmed" : "Needs confirmation"}
+          </small>
+        </>
+      ),
+    },
+    { key: "category", label: "Category", render: (s) => s.category || "—" },
+    { key: "cadence", label: "Cadence", render: (s) => s.cadence },
+    { key: "decision", label: "Decision", render: (s) => s.decision },
+    {
+      key: "spend_cents",
+      label: "Period spend",
+      numeric: true,
+      render: (s) => money(s.spend_cents),
+    },
+    {
+      key: "months_charged",
+      label: "Months charged",
+      numeric: true,
+      render: (s) => s.months_charged,
+    },
+    {
+      key: "last_charge",
+      label: "Last charge",
+      render: (s) => s.last_charge || "—",
+    },
+    {
+      key: "annual_cents",
+      label: "Annual cost",
+      numeric: true,
+      render: (s) => money(s.annual_cents),
+    },
+    {
+      key: "savings_cents",
+      label: "Potential savings",
+      numeric: true,
+      render: (s) => money(s.savings_cents),
+    },
+  ];
+  const targetColumns: DataColumn<Target, keyof Target>[] = [
+    { key: "category", label: "Category", render: (t) => t.category },
+    {
+      key: "spend_cents",
+      label: "Period spend",
+      numeric: true,
+      render: (t) => money(t.spend_cents),
+    },
+    {
+      key: "annual_cents",
+      label: "Annual baseline",
+      numeric: true,
+      render: (t) => money(t.annual_cents),
+    },
+    {
+      key: "percent",
+      label: "Reduction target",
+      render: (t) => (
+        <TargetEditor
+          key={`${t.category}:${t.percent}`}
+          target={t}
+          pending={target.isPending}
+          save={(category, percent) => target.mutate({ category, percent })}
+        />
+      ),
+    },
+    {
+      key: "savings_cents",
+      label: "Annual savings",
+      numeric: true,
+      render: (t) => money(t.savings_cents),
+    },
+  ];
   const exportSavings = () => {
     if (!data) return;
     csvDownload(
@@ -524,28 +588,32 @@ export function SavingsOpportunities() {
         "Annual savings",
       ],
       [
-        ...data.services.map((s) => [
-          "Subscription",
-          s.vendor,
-          s.cadence,
-          s.decision,
-          s.confirmed ? "Yes" : "No",
-          s.spend_cents / 100,
-          s.annual_cents / 100,
-          "",
-          s.savings_cents / 100,
-        ]),
-        ...data.targets.map((t) => [
-          "Category",
-          t.category,
-          "",
-          "",
-          "",
-          t.spend_cents / 100,
-          t.annual_cents / 100,
-          t.percent,
-          t.savings_cents / 100,
-        ]),
+        ...serviceSort
+          .sorted(data.services)
+          .map((s) => [
+            "Subscription",
+            s.vendor,
+            s.cadence,
+            s.decision,
+            s.confirmed ? "Yes" : "No",
+            s.spend_cents / 100,
+            s.annual_cents / 100,
+            "",
+            s.savings_cents / 100,
+          ]),
+        ...targetSort
+          .sorted(data.targets)
+          .map((t) => [
+            "Category",
+            t.category,
+            "",
+            "",
+            "",
+            t.spend_cents / 100,
+            t.annual_cents / 100,
+            t.percent,
+            t.savings_cents / 100,
+          ]),
       ],
       "savings-opportunities.csv",
     );
@@ -566,7 +634,11 @@ export function SavingsOpportunities() {
           <Button onClick={() => setEditing("new")}>Add subscription</Button>
         </div>
       </div>
-      {controls}
+      {controls(
+        data
+          ? `${data.services.length} services · ${data.observed_months} observed months`
+          : "Loading savings…",
+      )}
       <ErrorMessage error={query.error} />
       {query.isPending ? (
         <Loading />
@@ -601,77 +673,23 @@ export function SavingsOpportunities() {
                 can be added manually. No services are canceled by this app.
               </p>
             </div>
-            <div className="report-table">
-              <table>
-                <thead>
-                  <tr>
-                    {[
-                      "Service",
-                      "Category",
-                      "Cadence",
-                      "Decision",
-                      "Period spend",
-                      "Months charged",
-                      "Last charge",
-                      "Annual cost",
-                      "Potential savings",
-                      "",
-                    ].map((h) => (
-                      <th key={h}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.services.map((s) => (
-                    <tr key={s.vendor}>
-                      <td>
-                        <button
-                          type="button"
-                          className="text-primary underline-offset-4 hover:underline focus-visible:underline"
-                          aria-label={`View transactions for ${s.vendor}`}
-                          onClick={() => {
-                            apply({
-                              ...filters,
-                              vendor: s.vendor,
-                              spending: "true",
-                            });
-                            void navigate({ to: "/transactions" });
-                          }}
-                        >
-                          {s.vendor}
-                        </button>
-                        <small className="block text-muted-foreground">
-                          {s.confirmed ? "Confirmed" : "Needs confirmation"}
-                        </small>
-                      </td>
-                      <td>{s.category || "—"}</td>
-                      <td>{s.cadence}</td>
-                      <td>{s.decision}</td>
-                      <td>{money(s.spend_cents)}</td>
-                      <td>{s.months_charged}</td>
-                      <td>{s.last_charge || "—"}</td>
-                      <td>{money(s.annual_cents)}</td>
-                      <td>{money(s.savings_cents)}</td>
-                      <td>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setEditing(s)}
-                        >
-                          Edit
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {!data.services.length && (
-                <p className="p-6 text-muted-foreground">
-                  No recurring-charge suggestions yet. Add a service manually or
-                  import more statements.
-                </p>
+            <DataTable
+              rows={serviceSort.sorted(data.services)}
+              columns={serviceColumns}
+              rowKey={(s) => s.vendor}
+              sort={serviceSort.sort}
+              onSort={serviceSort.onSort}
+              empty="No recurring-charge suggestions yet. Add a service manually or import more statements."
+              actions={(s) => (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditing(s)}
+                >
+                  Edit
+                </Button>
               )}
-            </div>
+            />
             <div>
               <h2 className="text-xl font-semibold">Category targets</h2>
               <p className="mt-2 text-sm text-muted-foreground">
@@ -694,48 +712,14 @@ export function SavingsOpportunities() {
                 These months are excluded from the annual baseline calculation.
               </p>
             )}
-            <div className="report-table">
-              <table>
-                <thead>
-                  <tr>
-                    {[
-                      "Category",
-                      "Period spend",
-                      "Annual baseline",
-                      "Suggested reduction",
-                      "Annual savings",
-                    ].map((h) => (
-                      <th key={h}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.targets.map((t) => (
-                    <tr key={t.category}>
-                      <td>{t.category}</td>
-                      <td>{money(t.spend_cents)}</td>
-                      <td>{money(t.annual_cents)}</td>
-                      <td>
-                        <TargetEditor
-                          key={`${t.category}:${t.percent}`}
-                          target={t}
-                          pending={target.isPending}
-                          save={(category, percent) =>
-                            target.mutate({ category, percent })
-                          }
-                        />
-                      </td>
-                      <td>{money(t.savings_cents)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {!data.targets.length && (
-                <p className="p-6 text-muted-foreground">
-                  No category spending in this period.
-                </p>
-              )}
-            </div>
+            <DataTable
+              rows={targetSort.sorted(data.targets)}
+              columns={targetColumns}
+              rowKey={(t) => t.category}
+              sort={targetSort.sort}
+              onSort={targetSort.onSort}
+              empty="No category spending in this period."
+            />
           </>
         )
       )}

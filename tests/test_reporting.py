@@ -173,3 +173,26 @@ def test_vendor_api_filters_and_savings_account_scope(client):
     scoped = client.get("/api/reports/savings?account=Card%20A").json()
     assert len(scoped["services"]) == 1 and scoped["services"][0]["spend_cents"] == 3000
     assert client.get("/api/reports/savings?account=Card%20B").json()["services"] == []
+
+
+def test_transaction_sorting_happens_before_pagination_and_preserves_filters(client):
+    with Session() as session:
+        for i in range(105):
+            session.add(Transaction(import_id=1, row_index=i, account="Card A", date=date(2026,1,1),
+                                    vendor=f"Vendor {i:03d}", description="Purchase", amount_cents=105-i,
+                                    kind="purchase", category="Shopping"))
+        session.add(Transaction(import_id=2, row_index=0, account="Card B", date=date(2026,1,1),
+                                vendor="Another vendor", description="Purchase", amount_cents=99999,
+                                kind="purchase", category="Shopping"))
+        session.commit()
+    params = {"account": "Card A", "sort": "amount_cents", "direction": "asc"}
+    first = client.get("/api/transactions", params=params).json()
+    second = client.get("/api/transactions", params={**params, "page": 2}).json()
+    assert first["count"] == 105 and first["pages"] == 2
+    assert [r["amount_cents"] for r in first["rows"] + second["rows"]] == list(range(1,106))
+    descending = client.get("/api/transactions", params={**params, "direction":"desc"}).json()
+    assert descending["rows"][0]["amount_cents"] == 105
+    by_name = client.get("/api/transactions?account=Card%20A&sort=vendor&direction=asc").json()
+    assert by_name["rows"][0]["vendor"] == "Vendor 000"
+    assert client.get("/api/transactions?sort=unknown").status_code == 422
+    assert client.get("/api/transactions?direction=unknown").status_code == 422

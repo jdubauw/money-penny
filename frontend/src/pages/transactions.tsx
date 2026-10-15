@@ -16,8 +16,16 @@ import {
   TextField,
 } from "@/components/shared";
 import { CategoryInput } from "@/components/category-input";
-import { TransactionTable } from "@/components/transaction-table";
+import { SortSelect, type SortState } from "@/components/data-table";
+import {
+  TransactionTable,
+  type TransactionSortKey,
+} from "@/components/transaction-table";
 export function Transactions() {
+  const [sort, setSort] = useState<SortState<TransactionSortKey>>({
+    key: "date",
+    direction: "desc",
+  });
   const { bootstrap, filters, invalidate, setNotice } = useLedger(),
     [page, setPage] = useState(1),
     [selected, setSelected] = useState(new Set<number>()),
@@ -25,12 +33,17 @@ export function Transactions() {
   useEffect(() => {
     setPage(1);
     setSelected(new Set());
-  }, [filters]);
+  }, [filters, sort]);
   const query = useQuery({
-    queryKey: ["transactions", filters, page],
+    queryKey: ["transactions", filters, page, sort],
     queryFn: ({ signal }) =>
       api<{ rows: Transaction[]; count: number; pages: number; page: number }>(
-        "/api/transactions?" + queryString(filters, { page: String(page) }),
+        "/api/transactions?" +
+          queryString(filters, {
+            page: String(page),
+            sort: sort.key,
+            direction: sort.direction,
+          }),
         { signal },
       ),
   });
@@ -161,6 +174,20 @@ export function Transactions() {
             <ErrorMessage error={query.error} />
           ) : query.data.count ? (
             <>
+              <div className="p-4 md:hidden">
+                <SortSelect
+                  id="transaction-sort"
+                  columns={[
+                    { key: "date", label: "Date" },
+                    { key: "vendor", label: "Merchant" },
+                    { key: "account", label: "Account" },
+                    { key: "category", label: "Category" },
+                    { key: "amount_cents", label: "Amount" },
+                  ]}
+                  sort={sort}
+                  onChange={setSort}
+                />
+              </div>
               <div className="flex items-center justify-between gap-2 py-3 text-xs text-muted-foreground md:hidden">
                 <span>{selected.size} selected</span>
                 <Button
@@ -181,6 +208,20 @@ export function Transactions() {
                 </Button>
               </div>
               <TransactionTable
+                sort={sort}
+                onSort={(key) =>
+                  setSort((s) => ({
+                    key,
+                    direction:
+                      s.key === key
+                        ? s.direction === "asc"
+                          ? "desc"
+                          : "asc"
+                        : key === "amount_cents" || key === "date"
+                          ? "desc"
+                          : "asc",
+                  }))
+                }
                 rows={query.data.rows}
                 selected={selected}
                 onSelectAll={(checked) =>

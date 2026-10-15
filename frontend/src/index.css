@@ -2263,45 +2263,6 @@
   color: var(--primary);
   flex-shrink: 0;
 }
-#transactions #filter-form > .transaction-filter-grid {
-  display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  padding: 20px;
-  gap: 16px;
-}
-.transaction-filter-grid > div {
-  grid-column: span 2;
-}
-.transaction-filter-grid > div:has(#f-search) {
-  grid-column: span 4;
-  order: 1;
-}
-.transaction-filter-grid > div:has(#f-start) {
-  order: 2;
-}
-.transaction-filter-grid > div:has(#f-end) {
-  order: 3;
-}
-.transaction-filter-grid > div:has(#f-account) {
-  order: 4;
-}
-.transaction-filter-grid > div:has(#f-category) {
-  order: 5;
-}
-.transaction-filter-grid > div:has(#f-kind) {
-  order: 6;
-}
-.transaction-filter-grid > div:has(#f-min) {
-  grid-column: span 1;
-  order: 7;
-}
-.transaction-filter-grid > div:has(#f-max) {
-  grid-column: span 1;
-  order: 8;
-}
-.transaction-filter-grid label {
-  font-size: 12px;
-}
 .transaction-filter-footer {
   padding: 12px 20px;
   display: flex;
@@ -2353,18 +2314,6 @@
   border: 0;
   padding: 0;
   border-radius: 0;
-}
-#transactions .ledger-table thead {
-  background: var(--card);
-  font-size: 11px;
-}
-#transactions .ledger-table th {
-  font-weight: 400;
-  padding: 10px 16px;
-}
-#transactions .ledger-table td {
-  padding: 12px 16px;
-  font-size: 12px;
 }
 #transactions .ledger-table th:first-child {
   width: 110px;
@@ -2424,16 +2373,6 @@
   .transaction-ledger-heading .ledger-actions {
     justify-content: flex-start;
   }
-  #transactions #filter-form > .transaction-filter-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-  .transaction-filter-grid > div:has(#f-search) {
-    grid-column: span 4;
-  }
-  .transaction-filter-grid > div:has(#f-min),
-  .transaction-filter-grid > div:has(#f-max) {
-    grid-column: span 2;
-  }
 }
 @media (max-width: 45rem) {
   #transactions .filter-panel > button {
@@ -2443,8 +2382,7 @@
   .transaction-active-filters {
     padding: 16px 16px 0;
   }
-  .transaction-ai-filter,
-  #transactions #filter-form > .transaction-filter-grid {
+  .transaction-ai-filter {
     padding: 16px;
   }
   .transaction-ai-input {
@@ -2486,40 +2424,148 @@
   gap: 1rem;
   align-items: end;
 }
-.report-table {
-  overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-}
-.report-table table {
-  width: 100%;
-  font-size: 0.875rem;
-  border-collapse: collapse;
-}
-.report-table th {
-  text-align: left;
-  background: var(--secondary);
-  font-weight: 600;
-  white-space: nowrap;
-}
-.report-table th,
-.report-table td {
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--border);
-}
-.report-table td {
-  font-variant-numeric: tabular-nums;
-}
-.report-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-.report-table tbody tr:hover {
-  background: var(--secondary);
-}
 .report-editor {
   padding: 1.5rem;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   display: grid;
   gap: 1rem;
+}
+
+/* Hallmark · pre-emit critique: P4 H4 E4 S5 R5 V3 · design-system: design.md */
+/* Shared workbench tables and filters. */
+.data-filter-panel {
+  padding: 0;
+  overflow: clip;
+  background: var(--card);
+}
+.data-filter-panel > button {
+  margin: 0;
+  padding: 16px;
+}
+.shared-filter-grid,
+#transactions #filter-form > .shared-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  padding: 20px;
+  gap: 16px;
+}
+.shared-filter-grid > div {
+  min-width: 0;
+  grid-column: span 2;
+}
+.shared-filter-grid > div[data-filter-field="search"] {
+  grid-column: span 4;
+}
+.shared-filter-grid > div[data-filter-field="min"],
+.shared-filter-grid > div[data-filter-field="max"] {
+  grid-column: span 1;
+}
+.report-filter-grid > div[data-filter-field="account"],
+.report-filter-grid > div[data-filter-field="category"] {
+  grid-column: span 4;
+}
+.shared-filter-grid label {
+  font-size: 12px;
+}
+.data-table-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  min-width: 0;
+  overflow: clip;
+}
+.data-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+.data-table thead,
+.data-table th {
+  background: var(--card);
+}
+.data-table th {
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.data-table td {
+  padding: 12px 16px;
+  font-size: 12px;
+}
+.data-table tbody tr,
+.data-table tbody tr:hover {
+  background: var(--card);
+}
+.data-table tbody tr[data-state="selected"] {
+  background: var(--accent);
+}
+.data-table tbody tr:focus-within {
+  box-shadow: inset 3px 0 var(--primary);
+}
+.data-table .data-numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.data-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  min-height: 24px;
+  border-radius: 4px;
+}
+.data-sort-button svg {
+  width: 13px;
+  height: 13px;
+  color: var(--muted-foreground);
+}
+.data-sort-button:hover,
+.data-sort-button:active,
+.data-sort-button:hover svg,
+[aria-sort="ascending"] .data-sort-button svg,
+[aria-sort="descending"] .data-sort-button svg {
+  color: var(--primary);
+}
+.data-sort-button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+}
+.data-drill-link {
+  color: var(--primary);
+  font-weight: 500;
+  text-align: left;
+}
+.data-drill-link:hover {
+  text-decoration: underline;
+}
+.data-drill-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+}
+.report-editor {
+  background: var(--card);
+}
+@media (max-width: 64rem) {
+  .shared-filter-grid,
+  #transactions #filter-form > .shared-filter-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .shared-filter-grid > div[data-filter-field="min"],
+  .shared-filter-grid > div[data-filter-field="max"] {
+    grid-column: span 2;
+  }
+  .shared-filter-grid > div[data-filter-field="kind"] {
+    grid-column: span 4;
+  }
+  .report-filter-grid > div[data-filter-field="account"],
+  .report-filter-grid > div[data-filter-field="category"] {
+    grid-column: span 2;
+  }
+}
+@media (max-width: 45rem) {
+  .shared-filter-grid,
+  #transactions #filter-form > .shared-filter-grid {
+    padding: 16px;
+  }
 }

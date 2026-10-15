@@ -1,9 +1,5 @@
-import {
-  SlidersHorizontal,
-  ChevronDown,
-  Sparkles,
-  RotateCcw,
-} from "lucide-react";
+import { Sparkles } from "lucide-react";
+import { FilterPanel, FilterFields, FilterFooter } from "./filter-panel";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -13,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { useLedger } from "@/lib/state";
 import type { FilterPlan } from "@/lib/types";
-import { ErrorMessage, Modal, SelectField, TextField } from "./shared";
+import { ErrorMessage, Modal, TextField } from "./shared";
 export function FiltersPanel({
   count,
   shown,
@@ -21,9 +17,8 @@ export function FiltersPanel({
   count?: number;
   shown?: number;
 }) {
-  const { bootstrap, draft, setDraft, apply } = useLedger(),
+  const { draft, setDraft, apply } = useLedger(),
     navigate = useNavigate();
-  const [expanded, setExpanded] = useState(false);
   const [question, setQuestion] = useState(""),
     [plan, setPlan] = useState<FilterPlan | null>(null);
   const mutation = useMutation({
@@ -34,238 +29,153 @@ export function FiltersPanel({
   const change = (key: string, value: string) =>
     setDraft({ ...draft, [key]: value });
   return (
-    <section className="filter-panel">
-      <Button
-        variant="ghost"
-        className="mb-2 w-full justify-between md:hidden"
-        aria-expanded={expanded}
-        aria-controls="ledger-filter-content"
-        onClick={() => setExpanded(!expanded)}
+    <FilterPanel>
+      <form
+        className="transaction-ai-filter"
+        onSubmit={(e) => {
+          e.preventDefault();
+          mutation.mutate();
+        }}
       >
-        <span className="flex items-center gap-2">
-          <SlidersHorizontal className="size-4" /> Filter transactions
-        </span>
-        <ChevronDown className={expanded ? "size-4 rotate-180" : "size-4"} />
-      </Button>
-      <div
-        id="ledger-filter-content"
-        className={expanded ? "block" : "hidden md:block"}
-      >
-        <form
-          className="transaction-ai-filter"
-          onSubmit={(e) => {
-            e.preventDefault();
-            mutation.mutate();
-          }}
-        >
-          <div className="transaction-ai-title">
-            <Sparkles className="size-4" />
-            Ask AI to filter
-          </div>
-          <div className="transaction-ai-input">
-            <TextField
-              id="question"
-              label="Describe the transactions you want to see"
-              value={question}
-              onChange={setQuestion}
-              required
-              placeholder="Dining purchases over $50 this year"
-            />
-            <Button disabled={mutation.isPending || !question.trim()}>
-              {mutation.isPending ? "Working…" : "Preview filters"}
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Sends your question plus category and account labels — never
-            transaction data.
-          </p>
-          <ErrorMessage error={mutation.error} />
-        </form>
+        <div className="transaction-ai-title">
+          <Sparkles className="size-4" />
+          Ask AI to filter
+        </div>
+        <div className="transaction-ai-input">
+          <TextField
+            id="question"
+            label="Describe the transactions you want to see"
+            value={question}
+            onChange={setQuestion}
+            required
+            placeholder="Dining purchases over $50 this year"
+          />
+          <Button disabled={mutation.isPending || !question.trim()}>
+            {mutation.isPending ? "Working…" : "Preview filters"}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Sends your question plus category and account labels — never
+          transaction data.
+        </p>
+        <ErrorMessage error={mutation.error} />
+      </form>
 
-        <form
-          id="filter-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            apply(draft);
-          }}
+      <form
+        id="filter-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          apply(draft);
+        }}
+      >
+        {(draft.spending === "true" || draft.vendor) && (
+          <div
+            className="transaction-active-filters"
+            role="group"
+            aria-label="Active transaction filters"
+          >
+            {draft.spending === "true" && (
+              <div className="transaction-filter-chip">
+                <span>Spending transactions only</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const next = { ...draft };
+                    delete next.spending;
+                    apply(next);
+                  }}
+                >
+                  Show all types
+                </Button>
+              </div>
+            )}
+            {draft.vendor && (
+              <div className="transaction-filter-chip">
+                <span>
+                  Merchant: <strong>{draft.vendor}</strong>
+                </span>
+                <Button
+                  id="clear-merchant"
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const next = { ...draft };
+                    delete next.vendor;
+                    apply(next);
+                  }}
+                >
+                  Clear merchant
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+        <input id="f-vendor" type="hidden" value={draft.vendor || ""} />
+        <FilterFields value={draft} onChange={change} advanced />
+        <FilterFooter
+          onReset={() => apply({})}
+          status={
+            count === undefined
+              ? "Loading transactions…"
+              : `${shown || 0} of ${count} shown`
+          }
         >
-          {(draft.spending === "true" || draft.vendor) && (
-            <div
-              className="transaction-active-filters"
-              role="group"
-              aria-label="Active transaction filters"
+          <Label className="min-h-11">
+            <Checkbox
+              id="f-review"
+              checked={draft.review === "true"}
+              onCheckedChange={(v) => change("review", v ? "true" : "")}
+            />
+            Needs review
+          </Label>
+        </FilterFooter>
+      </form>
+      <Modal
+        open={!!plan}
+        onOpenChange={(v) => {
+          if (!v) setPlan(null);
+        }}
+        id="plan-dialog"
+        title="Suggested filters"
+        description="Review AI's interpretation before applying it."
+      >
+        {plan && (
+          <>
+            <p>{plan.explanation}</p>
+            <dl>
+              {Object.entries(plan)
+                .filter(([k, v]) => k !== "explanation" && v !== null)
+                .map(([k, v]) => (
+                  <div
+                    key={k}
+                    className="flex flex-wrap justify-between gap-3 border-b py-2"
+                  >
+                    <dt>{k.replaceAll("_", " ")}</dt>
+                    <dd>{String(v)}</dd>
+                  </div>
+                ))}
+            </dl>
+            <Button
+              onClick={() => {
+                apply(
+                  Object.fromEntries(
+                    Object.entries(plan)
+                      .filter(([k, v]) => k !== "explanation" && v !== null)
+                      .map(([k, v]) => [k, String(v)]),
+                  ),
+                );
+                setPlan(null);
+                void navigate({ to: "/transactions" });
+              }}
             >
-              {draft.spending === "true" && (
-                <div className="transaction-filter-chip">
-                  <span>Spending transactions only</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const next = { ...draft };
-                      delete next.spending;
-                      apply(next);
-                    }}
-                  >
-                    Show all types
-                  </Button>
-                </div>
-              )}
-              {draft.vendor && (
-                <div className="transaction-filter-chip">
-                  <span>
-                    Merchant: <strong>{draft.vendor}</strong>
-                  </span>
-                  <Button
-                    id="clear-merchant"
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const next = { ...draft };
-                      delete next.vendor;
-                      apply(next);
-                    }}
-                  >
-                    Clear merchant
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-          <input id="f-vendor" type="hidden" value={draft.vendor || ""} />
-          <div className="transaction-filter-grid">
-            <TextField
-              id="f-start"
-              label="From"
-              type="date"
-              value={draft.start || ""}
-              onChange={(v) => change("start", v)}
-            />
-            <TextField
-              id="f-end"
-              label="Through"
-              type="date"
-              value={draft.end || ""}
-              onChange={(v) => change("end", v)}
-            />
-            <SelectField
-              id="f-account"
-              label="Account"
-              values={bootstrap.accounts}
-              value={draft.account || ""}
-              empty="All accounts"
-              onChange={(v) => change("account", v)}
-            />
-            <SelectField
-              id="f-category"
-              label="Category"
-              values={bootstrap.categories}
-              value={draft.category || ""}
-              empty="All categories"
-              onChange={(v) => change("category", v)}
-            />
-            <TextField
-              id="f-search"
-              label="Merchant or description"
-              type="search"
-              value={draft.search || ""}
-              placeholder="Search merchants"
-              onChange={(v) => change("search", v)}
-            />
-            <SelectField
-              id="f-kind"
-              label="Transaction type"
-              values={bootstrap.kinds}
-              value={draft.kind || ""}
-              empty="All types"
-              onChange={(v) => change("kind", v)}
-            />
-            <TextField
-              id="f-min"
-              label="Min amount ($)"
-              type="number"
-              step=".01"
-              value={draft.min_amount || ""}
-              onChange={(v) => change("min_amount", v)}
-            />
-            <TextField
-              id="f-max"
-              label="Max amount ($)"
-              type="number"
-              step=".01"
-              value={draft.max_amount || ""}
-              onChange={(v) => change("max_amount", v)}
-            />
-          </div>
-          <div className="transaction-filter-footer">
-            <div className="flex flex-wrap items-center gap-3">
-              <Button>Apply filters</Button>
-              <Button type="button" variant="outline" onClick={() => apply({})}>
-                <RotateCcw className="size-3.5" />
-                Reset
-              </Button>
-              <Label className="min-h-11">
-                <Checkbox
-                  id="f-review"
-                  checked={draft.review === "true"}
-                  onCheckedChange={(v) => change("review", v ? "true" : "")}
-                />
-                Needs review
-              </Label>
-            </div>
-            <span className="transaction-filter-count">
-              {count === undefined
-                ? "Loading transactions…"
-                : `${shown || 0} of ${count} shown`}
-            </span>
-          </div>
-        </form>
-        <Modal
-          open={!!plan}
-          onOpenChange={(v) => {
-            if (!v) setPlan(null);
-          }}
-          id="plan-dialog"
-          title="Suggested filters"
-          description="Review AI's interpretation before applying it."
-        >
-          {plan && (
-            <>
-              <p>{plan.explanation}</p>
-              <dl>
-                {Object.entries(plan)
-                  .filter(([k, v]) => k !== "explanation" && v !== null)
-                  .map(([k, v]) => (
-                    <div
-                      key={k}
-                      className="flex flex-wrap justify-between gap-3 border-b py-2"
-                    >
-                      <dt>{k.replaceAll("_", " ")}</dt>
-                      <dd>{String(v)}</dd>
-                    </div>
-                  ))}
-              </dl>
-              <Button
-                onClick={() => {
-                  apply(
-                    Object.fromEntries(
-                      Object.entries(plan)
-                        .filter(([k, v]) => k !== "explanation" && v !== null)
-                        .map(([k, v]) => [k, String(v)]),
-                    ),
-                  );
-                  setPlan(null);
-                  void navigate({ to: "/transactions" });
-                }}
-              >
-                Apply these filters
-              </Button>
-            </>
-          )}
-        </Modal>
-      </div>
-    </section>
+              Apply these filters
+            </Button>
+          </>
+        )}
+      </Modal>
+    </FilterPanel>
   );
 }

@@ -402,10 +402,14 @@ def transaction_dict(row):
 
 
 @app.get("/api/transactions", dependencies=[Depends(auth)])
-def transactions(filters=Depends(filter_params), page: int = Query(1, ge=1), session=Depends(db)):
+def transactions(filters=Depends(filter_params), page: int = Query(1, ge=1),
+                 sort: Literal["date", "vendor", "account", "category", "amount_cents"] = "date",
+                 direction: Literal["asc", "desc"] = "desc", session=Depends(db)):
     query = filtered(session, **filters)
     count = session.scalar(select(func.count()).select_from(query.subquery()))
-    rows = session.scalars(query.order_by(Transaction.date.desc(), Transaction.id.desc()).offset((page - 1) * 100).limit(100))
+    column = getattr(Transaction, sort)
+    ordering = column.asc() if direction == "asc" else column.desc()
+    rows = session.scalars(query.order_by(ordering, Transaction.id.desc()).offset((page - 1) * 100).limit(100))
     return {"rows": [transaction_dict(r) for r in rows], "count": count, "page": page, "pages": (count + 99) // 100}
 
 

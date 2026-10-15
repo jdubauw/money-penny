@@ -44,13 +44,13 @@ const assert = require('node:assert/strict');
   await page.getByRole('button',{name:'Save & mark reviewed'}).click();
   await page.locator('#edit-dialog').waitFor({state:'hidden'});
   await page.getByRole('link',{name:'AI & rules',exact:true}).click();
-  await page.locator('#rules-list').getByText('Amazon → Home',{exact:true}).waitFor();
-  await page.locator('#ai-provider').selectOption('ollama');
+  await page.locator('#rules-list .ai-rule-row').filter({has:page.getByText('Amazon',{exact:true})}).getByText('Home',{exact:true}).waitFor();
+  await page.locator('input[name="provider-choice"][value="ollama"]').check();
   await page.locator('#ollama-model').fill('test-model');
   await page.getByRole('button',{name:'Save settings'}).click();
   await page.locator('#provider-label').getByText('AI provider: Ollama').waitFor();
   // Restore no-network provider after checking settings persistence.
-  await page.locator('#ai-provider').selectOption('none');
+  await page.locator('input[name="provider-choice"][value="none"]').check();
   await page.getByRole('button',{name:'Save settings'}).click();
   await page.locator('#provider-label').getByText('Merchant rules only').waitFor();
   await page.getByRole('link',{name:'Overview',exact:true}).click();
@@ -83,7 +83,16 @@ const assert = require('node:assert/strict');
       if (width===375 || width===1440) await page.screenshot({path:`outputs/app-preview/${view}-${width}.png`,fullPage:true});
       const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);
       assert.equal(overflow,false,`${view} overflows at ${width}`);
-      const wraps=await page.locator('button:visible').evaluateAll(buttons=>buttons.filter(b=>b.clientWidth>0&&getComputedStyle(b).whiteSpace!=='nowrap').map(b=>b.textContent));
+      const wraps=await page.locator('button:visible').evaluateAll(buttons=>buttons.filter(button=>{
+        const lines=new Set();
+        const walker=document.createTreeWalker(button,NodeFilter.SHOW_TEXT);
+        while(walker.nextNode()) {
+          if(!walker.currentNode.textContent.trim()) continue;
+          const range=document.createRange(); range.selectNodeContents(walker.currentNode);
+          for(const rect of range.getClientRects()) if(rect.width>0&&rect.height>0) lines.add(Math.round(rect.top));
+        }
+        return lines.size>1;
+      }).map(b=>b.textContent));
       assert.deepEqual(wraps,[],`Buttons can wrap at ${width}`);
     }
     await navigate('transactions');
