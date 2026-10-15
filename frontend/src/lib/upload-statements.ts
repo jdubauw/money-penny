@@ -1,5 +1,5 @@
-import { api, ApiError } from "./api";
-import type { ImportRecord } from "./types";
+import { api, ApiError } from "@/lib/api";
+import type { ImportRecord } from "@/lib/types";
 
 export interface UploadResult {
   file: File;

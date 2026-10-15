@@ -18,6 +18,8 @@ A private, single-user web application for uploading bank exports, reviewing tra
 
 The frontend lives in `frontend/`: **React + TypeScript**, **Vite**, **Tailwind CSS v4**, **shadcn/ui** (Radix components), **TanStack Router**, **TanStack Query**, and **TanStack Charts**. Components, typed API calls, query caching, and mutations replace the original static DOM scripts. Routing uses URL hashes so refreshing a page needs no extra reverse-proxy routes.
 
+Frontend organization follows **one React component definition per file**, including UI primitives. Pages live in `frontend/src/pages/`, reusable components in `components/`, state hooks in `hooks/`, and shared types and utilities in `lib/`. Compatibility barrels remain for shared fields, charts, reports, and grouped UI primitives; application code imports the component files directly. `npm test` from `frontend/` checks calendar boundaries and the component structure. Type checking also rejects unused imports, locals, and parameters.
+
 The Dockerfile uses a Node build stage to compile the frontend and copies only the resulting assets into the Python image. FastAPI serves those assets and the API from the same origin. No Node server, CDN, or third-party font service is needed in production. The existing Coolify Compose configuration still works unchanged.
 
 ## Deploy on Coolify

@@ -8,19 +8,19 @@ import { Label } from "@/components/ui/label";
 import { api, money, queryString } from "@/lib/api";
 import { useLedger } from "@/lib/state";
 import type { History, Transaction } from "@/lib/types";
-import {
-  ErrorMessage,
-  Loading,
-  Modal,
-  SelectField,
-  TextField,
-} from "@/components/shared";
+import { ErrorMessage } from "@/components/error-message";
+import { Loading } from "@/components/loading";
+import { Modal } from "@/components/modal";
+import { SelectField } from "@/components/select-field";
+import { TextField } from "@/components/text-field";
 import { CategoryInput } from "@/components/category-input";
-import { SortSelect, type SortState } from "@/components/data-table";
+import { SortSelect } from "@/components/sort-select";
+import { type SortState } from "@/lib/table-types";
 import {
   TransactionTable,
   type TransactionSortKey,
 } from "@/components/transaction-table";
+
 export function Transactions() {
   const [sort, setSort] = useState<SortState<TransactionSortKey>>({
     key: "date",

@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "format": "prettier --write src vite.config.ts *.json index.html",
-    "format:check": "prettier --check src vite.config.ts *.json index.html"
+    "format:check": "prettier --check src vite.config.ts *.json index.html",
+    "test": "node --test ../tests/date-presets.test.mjs ../tests/component-structure.test.mjs"
   },
   "dependencies": {
     "@tanstack/charts": "1.1.0",
