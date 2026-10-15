@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+import { NativeSelect } from "@/components/ui/native-select/native-select";
+import { NativeSelectOption } from "@/components/ui/native-select/native-select-option";
 import { Button } from "@/components/ui/button";
-import { Field, Loading, ErrorMessage } from "@/components/shared";
+import { Field } from "@/components/field";
+import { Loading } from "@/components/loading";
+import { ErrorMessage } from "@/components/error-message";
 import { api, money, queryString } from "@/lib/api";
 import type { SpendingReport } from "@/lib/types";
 

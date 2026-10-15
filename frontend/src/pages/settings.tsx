@@ -13,13 +13,12 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { useLedger } from "@/lib/state";
 import type { AIConfig, Job, Rule } from "@/lib/types";
-import {
-  ErrorMessage,
-  Field,
-  Loading,
-  Modal,
-  TextField,
-} from "@/components/shared";
+import { ErrorMessage } from "@/components/error-message";
+import { Field } from "@/components/field";
+import { Loading } from "@/components/loading";
+import { Modal } from "@/components/modal";
+import { TextField } from "@/components/text-field";
+
 export function Settings() {
   const { bootstrap, invalidate, setNotice } = useLedger(),
     [values, setValues] = useState(bootstrap.ai);

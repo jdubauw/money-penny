@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Bootstrap, Filters, ReportView } from "./types";
+import type { Bootstrap, Filters, ReportView } from "@/lib/types";
+
 interface ReportSelection {
   view: ReportView;
   period: string;

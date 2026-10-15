@@ -14,10 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+import { NativeSelect } from "@/components/ui/native-select/native-select";
+import { NativeSelectOption } from "@/components/ui/native-select/native-select-option";
 import { api, money } from "@/lib/api";
 import {
   uploadStatements,
@@ -26,14 +24,13 @@ import {
 } from "@/lib/upload-statements";
 import { useLedger } from "@/lib/state";
 import type { ImportRecord } from "@/lib/types";
-import {
-  ErrorMessage,
-  Field,
-  Loading,
-  Modal,
-  TextField,
-} from "@/components/shared";
+import { ErrorMessage } from "@/components/error-message";
+import { Field } from "@/components/field";
+import { Loading } from "@/components/loading";
+import { Modal } from "@/components/modal";
+import { TextField } from "@/components/text-field";
 import { TransactionTable } from "@/components/transaction-table";
+
 interface Preferences {
   date_format: string;
   negative_expenses: boolean;

@@ -3,74 +3,27 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowDownToLine,
-  ArrowDownRight,
-  ArrowUpRight,
   ArrowRight,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+import { NativeSelect } from "@/components/ui/native-select/native-select";
+import { NativeSelectOption } from "@/components/ui/native-select/native-select-option";
 import { Checkbox } from "@/components/ui/checkbox";
 import { api, money, queryString } from "@/lib/api";
 import { useLedger } from "@/lib/state";
 import type { ReportView, SpendingReport } from "@/lib/types";
-import { ErrorMessage, Loading } from "@/components/shared";
-import {
-  categoryColor,
-  CategoryDonut,
-  CategoryComparisonBars,
-  SpendingBars,
-} from "@/components/spending-charts";
+import { ErrorMessage } from "@/components/error-message";
+import { Loading } from "@/components/loading";
+import { categoryColor } from "@/lib/chart-theme";
+import { CategoryDonut } from "@/components/category-donut";
+import { CategoryComparisonBars } from "@/components/category-comparison-bars";
+import { SpendingBars } from "@/components/spending-bars";
+import { shiftedPeriod } from "@/lib/report-periods";
+import { SpendingChange } from "@/components/spending-change";
 
-function shiftedPeriod(report: SpendingReport, offset: number) {
-  const day = new Date(report.start + "T12:00:00");
-  day.setMonth(
-    day.getMonth() +
-      offset *
-        (report.view === "monthly" ? 1 : report.view === "quarterly" ? 3 : 12),
-  );
-  return report.view === "yearly"
-    ? String(day.getFullYear())
-    : report.view === "quarterly"
-      ? `${day.getFullYear()}-Q${Math.ceil((day.getMonth() + 1) / 3)}`
-      : `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}`;
-}
-function Change({
-  before,
-  after,
-  valid,
-}: {
-  before: number;
-  after: number;
-  valid: boolean;
-}) {
-  if (!valid) return <span className="text-muted-foreground">—</span>;
-  const delta = after - before;
-  return (
-    <span
-      className={`dashboard-change ${delta < 0 ? "is-lower" : delta > 0 ? "is-higher" : ""}`}
-    >
-      <span className="flex items-center justify-end gap-1">
-        {delta < 0 ? (
-          <ArrowDownRight className="size-3" />
-        ) : delta > 0 ? (
-          <ArrowUpRight className="size-3" />
-        ) : null}
-        {money(Math.abs(delta))}
-      </span>
-      {before > 0 && (
-        <span className="block text-[11px]">
-          {Math.abs((delta / before) * 100).toFixed(1)}%
-        </span>
-      )}
-    </span>
-  );
-}
 export function Overview() {
   const {
       bootstrap,
@@ -388,7 +341,7 @@ export function Overview() {
                         <div
                           className={`dashboard-change-pill ${delta < 0 ? "is-lower" : delta > 0 ? "is-higher" : ""}`}
                         >
-                          <Change
+                          <SpendingChange
                             before={baseline.spend_cents}
                             after={r.spend_cents}
                             valid={true}
@@ -577,7 +530,7 @@ export function Overview() {
                               </Button>
                             </td>
                             <td data-label="Change">
-                              <Change
+                              <SpendingChange
                                 before={row.previous}
                                 after={row.current}
                                 valid={comparable}
@@ -603,7 +556,7 @@ export function Overview() {
                               : "—"}
                           </td>
                           <td data-label="Change">
-                            <Change
+                            <SpendingChange
                               before={baseline?.spend_cents || 0}
                               after={r.spend_cents}
                               valid={comparable}

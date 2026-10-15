@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Field } from "@/components/shared";
+import { Field } from "@/components/field";
 
 export function CategoryInput({
   value,

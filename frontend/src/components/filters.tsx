@@ -1,5 +1,7 @@
 import { Sparkles } from "lucide-react";
-import { FilterPanel, FilterFields, FilterFooter } from "./filter-panel";
+import { FilterPanel } from "@/components/filter-panel";
+import { FilterFields } from "@/components/filter-fields";
+import { FilterFooter } from "@/components/filter-footer";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -9,7 +11,10 @@ import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { useLedger } from "@/lib/state";
 import type { FilterPlan } from "@/lib/types";
-import { ErrorMessage, Modal, TextField } from "./shared";
+import { ErrorMessage } from "@/components/error-message";
+import { Modal } from "@/components/modal";
+import { TextField } from "@/components/text-field";
+
 export function FiltersPanel({
   count,
   shown,

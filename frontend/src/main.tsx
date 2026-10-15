@@ -8,13 +8,15 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { App } from "./app";
-import { VendorAnalysis, SavingsOpportunities } from "./pages/reports";
-import { Overview } from "./pages/overview";
-import { Transactions } from "./pages/transactions";
-import { Imports } from "./pages/imports";
-import { Settings } from "./pages/settings";
+import { App } from "@/app";
+import { VendorAnalysis } from "@/pages/vendor-analysis";
+import { SavingsOpportunities } from "@/pages/savings-opportunities";
+import { Overview } from "@/pages/overview";
+import { Transactions } from "@/pages/transactions";
+import { Imports } from "@/pages/imports";
+import { Settings } from "@/pages/settings";
 import "./index.css";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 15000, retry: false, refetchOnWindowFocus: true },

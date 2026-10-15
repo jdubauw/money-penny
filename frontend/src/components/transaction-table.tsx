@@ -1,17 +1,17 @@
-import { SortHeader, type SortState } from "./data-table";
+import { SortHeader } from "@/components/sort-header";
+import { type SortState } from "@/lib/table-types";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table } from "@/components/ui/table/table";
+import { TableBody } from "@/components/ui/table/table-body";
+import { TableCell } from "@/components/ui/table/table-cell";
+import { TableHead } from "@/components/ui/table/table-head";
+import { TableHeader } from "@/components/ui/table/table-header";
+import { TableRow } from "@/components/ui/table/table-row";
 import { money } from "@/lib/api";
 import type { Transaction } from "@/lib/types";
+
 export type TransactionSortKey =
   "date" | "vendor" | "account" | "category" | "amount_cents";
 export function TransactionTable({
