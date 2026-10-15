@@ -89,37 +89,49 @@ export function FiltersPanel({
             apply(draft);
           }}
         >
-          {draft.spending === "true" && (
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <span>Spending transactions only</span>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  const next = { ...draft };
-                  delete next.spending;
-                  apply(next);
-                }}
-              >
-                Show all types
-              </Button>
-            </div>
-          )}
-          {draft.vendor && (
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <span>Merchant: {draft.vendor}</span>
-              <Button
-                id="clear-merchant"
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  const next = { ...draft };
-                  delete next.vendor;
-                  apply(next);
-                }}
-              >
-                Clear merchant
-              </Button>
+          {(draft.spending === "true" || draft.vendor) && (
+            <div
+              className="transaction-active-filters"
+              role="group"
+              aria-label="Active transaction filters"
+            >
+              {draft.spending === "true" && (
+                <div className="transaction-filter-chip">
+                  <span>Spending transactions only</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const next = { ...draft };
+                      delete next.spending;
+                      apply(next);
+                    }}
+                  >
+                    Show all types
+                  </Button>
+                </div>
+              )}
+              {draft.vendor && (
+                <div className="transaction-filter-chip">
+                  <span>
+                    Merchant: <strong>{draft.vendor}</strong>
+                  </span>
+                  <Button
+                    id="clear-merchant"
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const next = { ...draft };
+                      delete next.vendor;
+                      apply(next);
+                    }}
+                  >
+                    Clear merchant
+                  </Button>
+                </div>
+              )}
             </div>
           )}
           <input id="f-vendor" type="hidden" value={draft.vendor || ""} />

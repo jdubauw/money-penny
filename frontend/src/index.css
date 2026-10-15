@@ -2237,6 +2237,32 @@
   clip-path: inset(50%);
   overflow: hidden;
 }
+.transaction-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px 20px 0;
+}
+.transaction-filter-chip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  max-width: 100%;
+  padding: 4px 6px 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--muted);
+  font-size: 12px;
+}
+.transaction-filter-chip > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.transaction-filter-chip > button {
+  color: var(--primary);
+  flex-shrink: 0;
+}
 #transactions #filter-form > .transaction-filter-grid {
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
@@ -2413,6 +2439,9 @@
   #transactions .filter-panel > button {
     margin: 0;
     padding: 16px;
+  }
+  .transaction-active-filters {
+    padding: 16px 16px 0;
   }
   .transaction-ai-filter,
   #transactions #filter-form > .transaction-filter-grid {

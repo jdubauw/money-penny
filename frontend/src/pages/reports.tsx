@@ -481,6 +481,8 @@ function TargetEditor({
 }
 export function SavingsOpportunities() {
   const { filters, controls } = useReportFilters(),
+    { apply } = useLedger(),
+    navigate = useNavigate(),
     client = useQueryClient();
   const [editing, setEditing] = useState<Service | "new" | null>(null);
   const query = useQuery({
@@ -623,7 +625,21 @@ export function SavingsOpportunities() {
                   {data.services.map((s) => (
                     <tr key={s.vendor}>
                       <td>
-                        {s.vendor}
+                        <button
+                          type="button"
+                          className="text-primary underline-offset-4 hover:underline focus-visible:underline"
+                          aria-label={`View transactions for ${s.vendor}`}
+                          onClick={() => {
+                            apply({
+                              ...filters,
+                              vendor: s.vendor,
+                              spending: "true",
+                            });
+                            void navigate({ to: "/transactions" });
+                          }}
+                        >
+                          {s.vendor}
+                        </button>
                         <small className="block text-muted-foreground">
                           {s.confirmed ? "Confirmed" : "Needs confirmation"}
                         </small>
