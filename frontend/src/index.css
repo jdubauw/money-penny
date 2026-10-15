@@ -2569,3 +2569,20 @@
     padding: 16px;
   }
 }
+
+/* Calendar presets share the same draft/apply behavior as other filters. */
+.shared-filter-grid > div[data-filter-field="period"] {
+  grid-column: span 4;
+}
+.report-filter-grid > div[data-filter-field="account"],
+.report-filter-grid > div[data-filter-field="category"] {
+  grid-column: span 2;
+}
+
+.shared-filter-grid:not(.report-filter-grid) > div[data-filter-field="kind"] {
+  grid-column: span 4;
+}
+.shared-filter-grid:not(.report-filter-grid) > div[data-filter-field="min"],
+.shared-filter-grid:not(.report-filter-grid) > div[data-filter-field="max"] {
+  grid-column: span 2;
+}

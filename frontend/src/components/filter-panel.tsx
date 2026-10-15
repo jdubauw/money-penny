@@ -1,3 +1,9 @@
+import {
+  DATE_PRESETS,
+  presetRange,
+  rangePreset,
+  type DatePreset,
+} from "@/lib/date-presets";
 import { useState, type ReactNode } from "react";
 import { ChevronDown, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,13 +48,20 @@ export function FilterFields({
   onChange,
   prefix = "f",
   advanced = false,
+  onRangeChange,
 }: {
   value: Filters;
   onChange: (key: string, value: string) => void;
   prefix?: string;
   advanced?: boolean;
+  onRangeChange: (start: string, end: string) => void;
 }) {
   const { bootstrap } = useLedger();
+  const [customSelection, setCustomSelection] = useState<Filters | null>(null);
+  const period =
+    customSelection === value
+      ? "Custom range"
+      : rangePreset({ start: value.start || "", end: value.end || "" });
   return (
     <div
       className={`transaction-filter-grid shared-filter-grid ${advanced ? "" : "report-filter-grid"}`}
@@ -61,6 +74,23 @@ export function FilterFields({
           value={value.search || ""}
           placeholder="Search merchants"
           onChange={(v) => onChange("search", v)}
+        />
+      </div>
+      <div data-filter-field="period">
+        <SelectField
+          id={`${prefix}-period`}
+          label="Period"
+          values={[...DATE_PRESETS]}
+          value={period}
+          onChange={(selection) => {
+            if (selection === "Custom range") {
+              setCustomSelection(value);
+              return;
+            }
+            setCustomSelection(null);
+            const range = presetRange(selection as DatePreset);
+            if (range) onRangeChange(range.start, range.end);
+          }}
         />
       </div>
       <div data-filter-field="start">

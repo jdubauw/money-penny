@@ -114,7 +114,12 @@ export function FiltersPanel({
           </div>
         )}
         <input id="f-vendor" type="hidden" value={draft.vendor || ""} />
-        <FilterFields value={draft} onChange={change} advanced />
+        <FilterFields
+          value={draft}
+          onChange={change}
+          onRangeChange={(start, end) => setDraft({ ...draft, start, end })}
+          advanced
+        />
         <FilterFooter
           onReset={() => apply({})}
           status={

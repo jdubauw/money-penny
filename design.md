@@ -24,3 +24,5 @@ Modern minimal spending workbench. All app routes share one visual system.
 
 - Data workbench: Transactions, Vendor Analysis, subscriptions, and category targets share white table rows, compact cells, numeric alignment, and accessible sortable headers. Reports use the shared `DataTable`; the ledger composes the same table primitives and `SortHeader` while retaining selection and mobile cards. Transaction sorting happens on the server before pagination; reports sort their complete result sets locally. Null values sort last.
 - Shared filtering: `FilterPanel`, `FilterFields`, and `FilterFooter` own disclosure, field order, spacing, Apply/Reset actions, and result counts. Reports keep draft filters separate from applied filters, matching Transactions. The AI prompt remains on Transactions. Report tables scroll horizontally within their cards on small screens.
+
+- Calendar filters: all shared filter panels offer all-time, current/previous month, quarter, and year presets plus custom dates. Presets populate inclusive calendar boundaries in local time and remain drafts until Apply filters is selected.

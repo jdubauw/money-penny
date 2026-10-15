@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowDownToLine,
   ArrowDownRight,
@@ -100,27 +100,6 @@ export function Overview() {
   });
   const [showAllMerchants, setShowAllMerchants] = useState(false);
   const r = query.data;
-  const savingsSummary = useQuery({
-    queryKey: [
-      "reports",
-      "savings",
-      "overview",
-      r?.start,
-      r?.end,
-      selection.account,
-    ],
-    enabled: !!r,
-    queryFn: ({ signal }) =>
-      api<{ total_savings_cents: number }>(
-        "/api/reports/savings?" +
-          queryString({
-            start: r!.start,
-            end: r!.end,
-            account: selection.account,
-          }),
-        { signal },
-      ),
-  });
   const anchor = r ? `${r.view}:${r.period}` : "";
   const comparePeriod =
     comparisonChoice?.anchor === anchor
@@ -221,19 +200,6 @@ export function Overview() {
   const delta = r && baseline ? r.spend_cents - baseline.spend_cents : 0;
   return (
     <section id="overview" className="dashboard-overview">
-      <div className="mb-4 flex flex-wrap gap-3">
-        <Button asChild variant="outline">
-          <Link to="/reports/vendors">Vendor analysis</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link to="/reports/savings">
-            Savings opportunities
-            {savingsSummary.data && savingsSummary.data.total_savings_cents > 0
-              ? ` · ${money(savingsSummary.data.total_savings_cents)}/year potential`
-              : ""}
-          </Link>
-        </Button>
-      </div>
       <header className="dashboard-heading">
         <div>
           <h1>Overview</h1>

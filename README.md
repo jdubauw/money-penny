@@ -117,6 +117,8 @@ Then export the relevant environment variables in your shell and run these in tw
 
 For frontend hot reload, run `npm run dev` from `frontend/` in a third terminal and open `http://localhost:5173/static/`. Set backend `APP_ORIGIN=http://localhost:5173` and `COOKIE_SECURE=false` for this development session. Vite proxies `/api` to FastAPI on port 3005, preserving the HTTP-only session cookie. For testing the compiled UI served by FastAPI, use `APP_ORIGIN=http://localhost:3005` instead.
 
+`node --test tests/date-presets.test.mjs` (Node 24+) checks calendar preset boundaries, leap years, and year rollover.
+
 `npm run build` type-checks and builds the frontend. `npm run format:check` checks the TypeScript, React, and CSS formatting. The checked-in `frontend/components.json` lets you add shadcn components from `frontend/` with `npx shadcn@latest add COMPONENT`.
 
 Build the frontend before running backend tests with `.venv/bin/python -m pytest -q`. Tests create an isolated temporary database and mock the AI providers. The private-PDF reconciliation check runs only when the original `input/` PDFs are present.

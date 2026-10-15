@@ -78,11 +78,14 @@ function useReportFilters() {
         <FilterFields
           value={draft}
           onChange={(key, value) => setDraft((f) => ({ ...f, [key]: value }))}
+          onRangeChange={(start, end) =>
+            setDraft((f) => ({ ...f, start, end }))
+          }
           prefix="report"
         />
         <FilterFooter
           onReset={() => {
-            setDraft(empty);
+            setDraft({ ...empty });
             setFilters(empty);
           }}
           status={status}
